@@ -16,18 +16,39 @@ public struct ItemCardView: View {
         return AppIconCache.shared.icon(for: item.appBundleID)
     }
     
+    private var footerSubtitle: String {
+        let time = item.formattedRelativeTime
+        switch item.contentType {
+        case .text:
+            return "\(item.characterCount) characters • \(time)"
+        case .code:
+            return "\(item.characterCount) chars • \(time)"
+        case .image:
+            return "\(item.displaySubtitle) • \(time)"
+        case .color:
+            return "\(item.displaySubtitle) • \(time)"
+        case .file:
+            return "\(item.displaySubtitle) • \(time)"
+        case .link:
+            if let text = item.textValue, let url = URL(string: text), let host = url.host {
+                return "\(host) • \(time)"
+            }
+            return "Link • \(time)"
+        }
+    }
+    
     public var body: some View {
         VStack(spacing: 0) {
             // MARK: - Card Header
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 if let icon = appIcon {
                     Image(nsImage: icon)
                         .resizable()
-                        .frame(width: 18, height: 18)
-                        .cornerRadius(4)
+                        .frame(width: 16, height: 16)
+                        .cornerRadius(3.5)
                 } else {
                     Image(systemName: item.contentType.iconName)
-                        .font(.system(size: 12))
+                        .font(.system(size: 11))
                         .foregroundColor(config.accentTheme.color)
                 }
                 
@@ -35,18 +56,19 @@ public struct ItemCardView: View {
                     .font(.system(size: 11, weight: item.customTitle != nil ? .bold : .medium))
                     .foregroundColor(item.customTitle != nil ? config.accentTheme.color : .primary.opacity(0.85))
                     .lineLimit(1)
+                    .truncationMode(.tail)
                 
-                Spacer()
+                Spacer(minLength: 4)
                 
                 if item.isPinned {
                     Image(systemName: "pin.fill")
-                        .font(.system(size: 10))
+                        .font(.system(size: 9))
                         .foregroundColor(.orange)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(Color.orange.opacity(0.12))
+                        .cornerRadius(3)
                 }
-                
-                Text(item.formattedRelativeTime)
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
             }
             .padding(.horizontal, 10)
             .padding(.top, 8)
@@ -77,10 +99,11 @@ public struct ItemCardView: View {
             
             // MARK: - Card Footer
             HStack {
-                Text(item.displaySubtitle)
+                Text(footerSubtitle)
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
+                    .truncationMode(.tail)
                 
                 Spacer()
                 
