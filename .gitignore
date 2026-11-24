@@ -1,0 +1,33 @@
+# PasteFlow .gitignore
+
+# macOS system files
+.DS_Store
+*.swp
+*~
+
+# Swift & Build outputs
+build/
+dist/
+*.dmg
+*.app
+.build/
+*.o
+
+# QuocNgoKit local private toolkit & runtime (Keep private)
+.agents/
+.claude/
+.codex/
+.ck.json
+.env*
+docs/
+AGENTS.md
+GEMINI.md
+INSTALL.txt
+guide/
+papers/
+scripts/
+qn
+
+# Explicitly track essential PasteFlow assets
+!Assets/
+!Assets/**

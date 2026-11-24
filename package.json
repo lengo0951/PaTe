@@ -1,0 +1,19 @@
+{
+  "name": "pasteflow",
+  "version": "1.1.0",
+  "description": "Native macOS clipboard manager written in Swift 6, created by Quốc Ngô.",
+  "scripts": {
+    "build": "./build.sh",
+    "package": "./package_dmg.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lengo0951/PasteFlow.git"
+  },
+  "author": "Quốc Ngô <@lengo0951>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/lengo0951/PasteFlow/issues"
+  },
+  "homepage": "https://github.com/lengo0951/PasteFlow#readme"
+}

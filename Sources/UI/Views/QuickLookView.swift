@@ -1,0 +1,242 @@
+import SwiftUI
+import AppKit
+
+public struct QuickLookView: View {
+    let item: ClipboardItem
+    @ObservedObject var store: HistoryStore
+    let onPaste: (ClipboardItem, Bool) -> Void
+    let onClose: () -> Void
+    
+    public var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack(spacing: 10) {
+                if let icon = AppIconCache.shared.icon(for: item.appBundleID) {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .frame(width: 22, height: 22)
+                        .cornerRadius(5)
+                } else {
+                    Image(systemName: item.contentType.iconName)
+                        .font(.system(size: 16))
+                        .foregroundColor(.blue)
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.appName ?? item.contentType.displayName)
+                        .font(.system(size: 13, weight: .bold))
+                    Text("\(item.contentType.displayName) • \(item.formattedRelativeTime)")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Button(action: onClose) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            .background(Color.white.opacity(0.04))
+            
+            Divider()
+                .opacity(0.3)
+            
+            // Content Body
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    switch item.contentType {
+                    case .text, .code:
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(item.textValue ?? "")
+                                .font(item.contentType == .code ? .system(size: 13, design: .monospaced) : .system(size: 14))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(12)
+                                .background(Color.black.opacity(0.2))
+                                .cornerRadius(8)
+                            
+                            HStack(spacing: 12) {
+                                Label("\(item.lineCount) lines", systemImage: "text.alignleft")
+                                Label("\(item.characterCount) chars", systemImage: "character")
+                            }
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                        }
+                        
+                    case .image:
+                        if let fileName = item.imageFileName,
+                           let nsImage = store.loadImage(fileName: fileName) {
+                            VStack(spacing: 10) {
+                                Image(nsImage: nsImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxHeight: 320)
+                                    .cornerRadius(8)
+                                    .shadow(radius: 6)
+                                
+                                if let w = item.imageWidth, let h = item.imageHeight {
+                                    Text("Resolution: \(w) × \(h) px")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        
+                    case .color:
+                        let colorHex = item.textValue ?? "#FFFFFF"
+                        let color = Color(hexString: colorHex)
+                        VStack(spacing: 16) {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(color)
+                                .frame(width: 140, height: 140)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color.white.opacity(0.3), lineWidth: 2)
+                                )
+                                .shadow(color: color.opacity(0.5), radius: 16, x: 0, y: 8)
+                            
+                            Text(colorHex.uppercased())
+                                .font(.system(size: 20, weight: .bold, design: .monospaced))
+                            
+                            HStack(spacing: 10) {
+                                Button("Copy HEX") {
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(colorHex, forType: .string)
+                                    SoundManager.shared.playCopy()
+                                }
+                                .buttonStyle(.bordered)
+                                
+                                Button("Copy SwiftUI Color") {
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString("Color(hex: \"\(colorHex)\")", forType: .string)
+                                    SoundManager.shared.playCopy()
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                        
+                    case .link:
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "safari.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(.blue)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.displayTitle)
+                                        .font(.system(size: 15, weight: .bold))
+                                    Text("Web Link")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            Text(item.textValue ?? "")
+                                .font(.system(size: 13, design: .monospaced))
+                                .foregroundColor(.blue)
+                                .textSelection(.enabled)
+                                .padding(10)
+                                .background(Color.blue.opacity(0.1))
+                                .cornerRadius(8)
+                            
+                            if let urlStr = item.textValue, let url = URL(string: urlStr) {
+                                Button("Open in Browser") {
+                                    NSWorkspace.shared.open(url)
+                                }
+                                .buttonStyle(.borderedProminent)
+                            }
+                        }
+                        
+                    case .file:
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Files (\(item.filePaths?.count ?? 0)):")
+                                .font(.system(size: 13, weight: .semibold))
+                            
+                            if let paths = item.filePaths {
+                                ForEach(paths, id: \.self) { path in
+                                    HStack(spacing: 8) {
+                                        Image(nsImage: NSWorkspace.shared.icon(forFile: path))
+                                            .resizable()
+                                            .frame(width: 24, height: 24)
+                                        
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(URL(fileURLWithPath: path).lastPathComponent)
+                                                .font(.system(size: 12, weight: .medium))
+                                            Text(path)
+                                                .font(.system(size: 10))
+                                                .foregroundColor(.secondary)
+                                                .lineLimit(1)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Button("Reveal") {
+                                            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+                                    }
+                                    .padding(8)
+                                    .background(Color.white.opacity(0.04))
+                                    .cornerRadius(6)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(18)
+            }
+            .frame(maxHeight: 380)
+            
+            Divider()
+                .opacity(0.3)
+            
+            // Footer Actions
+            HStack(spacing: 12) {
+                Button("Paste (Return)") {
+                    onPaste(item, false)
+                }
+                .buttonStyle(.borderedProminent)
+                
+                Button("Paste Plain Text (⌥Return)") {
+                    onPaste(item, true)
+                }
+                .buttonStyle(.bordered)
+                
+                Button("Copy to Clipboard") {
+                    NSPasteboard.general.clearContents()
+                    if let text = item.textValue {
+                        NSPasteboard.general.setString(text, forType: .string)
+                    }
+                    SoundManager.shared.playCopy()
+                }
+                .buttonStyle(.bordered)
+                
+                Spacer()
+                
+                Text("Press Space or Esc to close")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 12)
+            .background(Color.white.opacity(0.02))
+        }
+        .frame(width: 540)
+        .background(Color(NSColor.windowBackgroundColor))
+        .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+        )
+        .shadow(radius: 20)
+    }
+}
