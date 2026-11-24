@@ -193,6 +193,21 @@ PasteFlow/
 
 ---
 
+## ⚡ Core Engineering Directives
+
+PasteFlow adheres to strict engineering rules codified in [`GEMINI.md`](GEMINI.md) and [`AGENTS.md`](AGENTS.md):
+
+1. **Dual-Platform Parity (macOS & Windows)**:
+   - Any feature, bugfix, UI refinement, or schema update **MUST be implemented and tested for BOTH macOS and Windows** simultaneously.
+   - Dual-release packaging mandate: Every release cycle must publish both `PasteFlow-<version>.dmg` (macOS) and `PasteFlow-v<version>-windows.zip` (Windows).
+2. **Performance-First & Zero-Bloat Mandate (Top Priority)**:
+   - **Ultra-low Memory (RSS)**: Target `< 35 MB` on macOS (~30 MB typical) and `< 25 MB` on Windows (~20 MB typical). Zero uncompressed bitmap traps.
+   - **Near 0.0% Idle CPU**: Throttled polling on macOS, event-driven format listener on Windows.
+   - **Zero Webviews / Heavy Frameworks**: Absolute prohibition of Electron, WebView2, Chromium, Node.js, or CEF runtimes. 100% native compiled code only.
+   - **Sub-50ms Latency**: Instant HUD summoning and keyboard paste delivery.
+
+---
+
 ## 👤 Author & Acknowledgments
 
 * **Creator:** **Quốc Ngô** ([@lengo0951](https://github.com/lengo0951) • `coolstar17`)

@@ -30,6 +30,9 @@ papers/
 scripts/
 qn
 
-# Explicitly track essential PasteFlow assets
+# Explicitly track essential PasteFlow assets and workspace rules
 !Assets/
 !Assets/**
+!GEMINI.md
+!AGENTS.md
+!RULES.md
