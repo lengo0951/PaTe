@@ -47,7 +47,7 @@ public struct CardCollectionView: View {
                 }
                 .onChange(of: store.selectedItemID) { newID in
                     if let id = newID {
-                        withAnimation {
+                        withAnimation(.easeOut(duration: 0.08)) {
                             proxy.scrollTo(id, anchor: .center)
                         }
                     }

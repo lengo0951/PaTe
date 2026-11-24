@@ -26,6 +26,11 @@
 * **⌨️ Ergonomic Hotkeys:** `Ctrl + Shift + V` HUD toggle, Spacebar Quick Look modal, and `SendInput` keystroke synthesis for instantaneous clipboard delivery.
 * **🔒 Privacy & Isolation:** Protected local storage in `%APPDATA%\PasteFlow` with JSON serialization and automatic sensitive clipboard filtering.
 
+#### ⚡ Action & Navigation Latency Optimizations (v1.1.0-hotfix)
+* **🏎️ Zero-Latency Navigation:** Short-circuited `filteredItems` to O(1) in the default state and accelerated scroll animation to 80ms, eliminating any visual delay when cycling through clips with arrow keys.
+* **⚡ Instant Double-Click Paste:** Removed SwiftUI single-tap disambiguation penalty (~300ms) and eliminated artificial delay timers (250ms). Double-clicking any card now orders out the HUD immediately and synthesizes paste keystrokes in under 25ms.
+* **🖱️ Full Windows Mouse Support:** Added `CS_DBLCLKS` window class style, `WM_LBUTTONDOWN` instant selection, and `WM_LBUTTONDBLCLK` immediate paste on Windows.
+
 ---
 
 ### 📦 Installation
@@ -46,6 +51,6 @@
 ### 🔐 SHA-256 Checksums
 
 ```text
-de411d0d2f251e003016f0d89dc4087e336603175b93619f2b52664760cfc05c  PasteFlow-1.1.0.dmg
-cf3dabde27bfaaa8b075bc7bdba5d91e090bf0cc6d2cd9fb9c6416e95cee9c19  PasteFlow-v1.1.0-windows.zip
+87f9e9180cc454a88e7e60d48578af66b05de6ed5066d1ed2fce8719d71e3cfa  PasteFlow-1.1.0.dmg
+495c04de1855fed3abf93d0c3ea21ae5cf4ab7005da53bc073b03295846c3ab4  PasteFlow-v1.1.0-windows.zip
 ```

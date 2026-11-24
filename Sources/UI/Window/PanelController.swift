@@ -253,7 +253,15 @@ public class PanelController: NSObject {
     }
     
     private func paste(item: ClipboardItem, asPlainText: Bool) {
-        hide()
+        // Immediately dismiss panel without animation so target text field regains focus instantaneously!
+        if let panel = panel {
+            panel.orderOut(nil)
+            isVisible = false
+            if let monitor = globalClickMonitor {
+                NSEvent.removeMonitor(monitor)
+                globalClickMonitor = nil
+            }
+        }
         PasteSimulator.shared.pasteItem(
             item,
             asPlainText: asPlainText,

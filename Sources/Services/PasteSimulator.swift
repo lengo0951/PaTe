@@ -65,22 +65,17 @@ public class PasteSimulator {
         // 3. Complete UI dismissal callback
         completion?()
         
-        // 4. Activate target application and simulate Cmd+V
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+        // 4. Activate target application and simulate Cmd+V with ultra-low latency (25ms)
+        if let targetApp = self.lastFrontmostApplication, !targetApp.isTerminated {
+            targetApp.activate(options: [.activateIgnoringOtherApps])
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.025) { [weak self] in
             guard let self = self else { return }
-            
-            if let targetApp = self.lastFrontmostApplication, !targetApp.isTerminated {
-                targetApp.activate(options: [.activateIgnoringOtherApps])
-            }
-            
-            // Wait slightly for target application to gain input focus
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                if self.isAccessibilityGranted {
-                    self.simulateCmdV()
-                } else {
-                    // Notify user or prompt accessibility once
-                    print("Accessibility permission not granted; copied to clipboard. User can paste with Cmd+V.")
-                }
+            if self.isAccessibilityGranted {
+                self.simulateCmdV()
+            } else {
+                print("Accessibility permission not granted; copied to clipboard. User can paste with Cmd+V.")
             }
         }
     }

@@ -121,16 +121,22 @@ public struct ItemCardView: View {
         )
         .scaleEffect(isHovered ? 1.015 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: isHovered)
-        .animation(.easeInOut(duration: 0.15), value: isSelected)
+        .animation(.easeOut(duration: 0.08), value: isSelected)
         .onHover { hovering in
             isHovered = hovering
         }
-        .onTapGesture(count: 2) {
-            onPaste(item, config.pastePlainTextByDefault)
-        }
-        .onTapGesture(count: 1) {
-            onSelect(item)
-        }
+        .gesture(
+            TapGesture(count: 2)
+                .onEnded {
+                    onPaste(item, config.pastePlainTextByDefault)
+                }
+        )
+        .simultaneousGesture(
+            TapGesture(count: 1)
+                .onEnded {
+                    onSelect(item)
+                }
+        )
         .contextMenu {
             Button("Paste to Active App (Return)") {
                 onPaste(item, false)

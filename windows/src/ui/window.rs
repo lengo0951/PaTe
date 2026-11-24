@@ -163,6 +163,64 @@ pub mod win32 {
                 }
                 LRESULT(0)
             }
+            WM_LBUTTONDOWN => {
+                let mouse_x = (lparam.0 as i32) as i16 as i32;
+                let mouse_y = ((lparam.0 >> 16) as i32) as i16 as i32;
+                if let Some(ref state_arc) = GLOBAL_STATE {
+                    let mut state = state_arc.lock();
+                    let start_x = 20;
+                    let card_width = 180;
+                    let card_height = 160;
+                    let card_y = 25;
+                    let spacing = 14;
+
+                    if mouse_y >= card_y && mouse_y <= card_y + card_height && mouse_x >= start_x {
+                        let card_idx = ((mouse_x - start_x) / (card_width + spacing)) as usize;
+                        let offset_in_card = (mouse_x - start_x) % (card_width + spacing);
+                        if offset_in_card <= card_width && card_idx < state.store.items.len() {
+                            if state.selected_index != card_idx {
+                                state.selected_index = card_idx;
+                                let _ = InvalidateRect(hwnd, None, true);
+                            }
+                        }
+                    }
+                }
+                LRESULT(0)
+            }
+            WM_LBUTTONDBLCLK => {
+                let mouse_x = (lparam.0 as i32) as i16 as i32;
+                let mouse_y = ((lparam.0 >> 16) as i32) as i16 as i32;
+                if let Some(ref state_arc) = GLOBAL_STATE {
+                    let mut state = state_arc.lock();
+                    let start_x = 20;
+                    let card_width = 180;
+                    let card_height = 160;
+                    let card_y = 25;
+                    let spacing = 14;
+
+                    if mouse_y >= card_y && mouse_y <= card_y + card_height && mouse_x >= start_x {
+                        let card_idx = ((mouse_x - start_x) / (card_width + spacing)) as usize;
+                        let offset_in_card = (mouse_x - start_x) % (card_width + spacing);
+                        if offset_in_card <= card_width && card_idx < state.store.items.len() {
+                            state.selected_index = card_idx;
+                            let target = state.target_hwnd;
+                            let item_opt = state.store.items.get(card_idx).cloned();
+                            state.is_visible = false;
+                            state.quicklook_active = false;
+                            let _ = ShowWindow(hwnd, SW_HIDE);
+                            drop(state);
+
+                            if let Some(item) = item_opt {
+                                if let Some(ref text) = item.text_value {
+                                    set_clipboard_text_with_tag(hwnd, text);
+                                    simulate_paste(target);
+                                }
+                            }
+                        }
+                    }
+                }
+                LRESULT(0)
+            }
             WM_KEYDOWN => {
                 let vk = wparam.0 as i32;
                 if let Some(ref state_arc) = GLOBAL_STATE {
@@ -416,7 +474,7 @@ pub mod win32 {
             let class_name: Vec<u16> = "PasteFlowHUDClass\0".encode_utf16().collect();
 
             let wc = WNDCLASSW {
-                style: CS_HREDRAW | CS_VREDRAW,
+                style: CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS,
                 lpfnWndProc: Some(window_proc),
                 hInstance: instance.into(),
                 lpszClassName: PCWSTR(class_name.as_ptr()),

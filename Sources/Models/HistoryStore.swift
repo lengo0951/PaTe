@@ -82,6 +82,10 @@ public class HistoryStore: ObservableObject {
     }
     
     public var filteredItems: [ClipboardItem] {
+        if selectedPinboardID == "history" && selectedContentType == nil && searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return items
+        }
+        
         var result = items
         
         // Filter by pinboard
