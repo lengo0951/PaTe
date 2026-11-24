@@ -8,6 +8,8 @@
 # Swift & Build outputs
 build/
 dist/
+target/
+windows/target/
 *.dmg
 *.app
 .build/
