@@ -47,5 +47,5 @@
 
 ```text
 de411d0d2f251e003016f0d89dc4087e336603175b93619f2b52664760cfc05c  PasteFlow-1.1.0.dmg
-d248d2ab6f6cb29d780e11a5f617fcd4deb5fc66bab002421c33980c0096c3c8  PasteFlow-v1.1.0-windows.zip
+cf3dabde27bfaaa8b075bc7bdba5d91e090bf0cc6d2cd9fb9c6416e95cee9c19  PasteFlow-v1.1.0-windows.zip
 ```

@@ -10,6 +10,7 @@ pub mod win32 {
     use windows::Win32::System::LibraryLoader::*;
     use windows::Win32::System::Memory::*;
     use windows::Win32::System::Threading::*;
+    use windows::Win32::UI::Shell::*;
     use windows::Win32::UI::WindowsAndMessaging::*;
 
     use crate::core::clipboard::win32::*;
@@ -25,6 +26,12 @@ pub mod win32 {
     pub const DWMSBT_TRANSIENTWINDOW: u32 = 3; // Acrylic blur
     pub const DWMWCP_ROUND: u32 = 2; // Rounded corners
 
+    pub const WM_TRAYICON: u32 = WM_USER + 101;
+    pub const IDM_TOGGLE: usize = 1001;
+    pub const IDM_CLEAR: usize = 1002;
+    pub const IDM_ABOUT: usize = 1003;
+    pub const IDM_EXIT: usize = 1004;
+
     pub struct WindowState {
         pub store: HistoryStore,
         pub is_visible: bool,
@@ -34,6 +41,24 @@ pub mod win32 {
     }
 
     pub static mut GLOBAL_STATE: Option<Arc<Mutex<WindowState>>> = None;
+
+    pub unsafe fn toggle_hud(hwnd: HWND) {
+        if let Some(ref state_arc) = GLOBAL_STATE {
+            let mut state = state_arc.lock();
+            state.is_visible = !state.is_visible;
+            if state.is_visible {
+                let fg = GetForegroundWindow();
+                state.target_hwnd = if fg.0 != hwnd.0 { Some(fg) } else { None };
+                state.selected_index = 0;
+                state.quicklook_active = false;
+                let _ = ShowWindow(hwnd, SW_SHOW);
+                let _ = SetForegroundWindow(hwnd);
+                let _ = InvalidateRect(hwnd, None, true);
+            } else {
+                let _ = ShowWindow(hwnd, SW_HIDE);
+            }
+        }
+    }
 
     pub unsafe extern "system" fn window_proc(
         hwnd: HWND,
@@ -78,19 +103,63 @@ pub mod win32 {
                 LRESULT(0)
             }
             WM_HOTKEY => {
-                if let Some(ref state_arc) = GLOBAL_STATE {
-                    let mut state = state_arc.lock();
-                    state.is_visible = !state.is_visible;
-                    if state.is_visible {
-                        let fg = GetForegroundWindow();
-                        state.target_hwnd = if fg.0 != hwnd.0 { Some(fg) } else { None };
-                        state.selected_index = 0;
-                        state.quicklook_active = false;
-                        let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
-                        let _ = InvalidateRect(hwnd, None, true);
-                    } else {
-                        let _ = ShowWindow(hwnd, SW_HIDE);
+                toggle_hud(hwnd);
+                LRESULT(0)
+            }
+            WM_COMMAND => {
+                let id = wparam.0 as usize;
+                match id {
+                    IDM_TOGGLE => {
+                        toggle_hud(hwnd);
                     }
+                    IDM_CLEAR => {
+                        if let Some(ref state_arc) = GLOBAL_STATE {
+                            let mut state = state_arc.lock();
+                            state.store.items.retain(|i| !i.pinboard_ids.is_empty());
+                            let _ = state.store.save();
+                            let _ = InvalidateRect(hwnd, None, true);
+                        }
+                    }
+                    IDM_ABOUT => {
+                        toggle_hud(hwnd);
+                    }
+                    IDM_EXIT => {
+                        let _ = DestroyWindow(hwnd);
+                    }
+                    _ => {}
+                }
+                LRESULT(0)
+            }
+            WM_TRAYICON => {
+                let event = lparam.0 as u32;
+                match event {
+                    WM_LBUTTONUP => {
+                        // Left-click on toolbar/system tray icon toggles PasteFlow HUD
+                        toggle_hud(hwnd);
+                    }
+                    WM_RBUTTONUP => {
+                        // Right-click shows context popup menu
+                        if let Ok(hmenu) = CreatePopupMenu() {
+                            let m_toggle: Vec<u16> = "Toggle PasteFlow (Ctrl+Shift+V)\0".encode_utf16().collect();
+                            let m_clear: Vec<u16> = "Clear History (Keep Pinned)\0".encode_utf16().collect();
+                            let m_about: Vec<u16> = "About PasteFlow (by Quốc Ngô)\0".encode_utf16().collect();
+                            let m_exit: Vec<u16> = "Exit PasteFlow\0".encode_utf16().collect();
+
+                            let _ = AppendMenuW(hmenu, MF_STRING, IDM_TOGGLE, PCWSTR(m_toggle.as_ptr()));
+                            let _ = AppendMenuW(hmenu, MF_SEPARATOR, 0, PCWSTR(std::ptr::null()));
+                            let _ = AppendMenuW(hmenu, MF_STRING, IDM_CLEAR, PCWSTR(m_clear.as_ptr()));
+                            let _ = AppendMenuW(hmenu, MF_STRING, IDM_ABOUT, PCWSTR(m_about.as_ptr()));
+                            let _ = AppendMenuW(hmenu, MF_SEPARATOR, 0, PCWSTR(std::ptr::null()));
+                            let _ = AppendMenuW(hmenu, MF_STRING, IDM_EXIT, PCWSTR(m_exit.as_ptr()));
+
+                            let mut pt = POINT::default();
+                            let _ = GetCursorPos(&mut pt);
+                            let _ = SetForegroundWindow(hwnd);
+                            let _ = TrackPopupMenu(hmenu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, hwnd, None);
+                            let _ = DestroyMenu(hmenu);
+                        }
+                    }
+                    _ => {}
                 }
                 LRESULT(0)
             }
@@ -104,7 +173,7 @@ pub mod win32 {
                             state.quicklook_active = false;
                             let _ = ShowWindow(hwnd, SW_HIDE);
                         }
-                        0x20 => { // VK_SPACE
+                        0x20 => { // VK_SPACE (Toggle preview)
                             state.quicklook_active = !state.quicklook_active;
                             let _ = InvalidateRect(hwnd, None, true);
                         }
@@ -178,11 +247,15 @@ pub mod win32 {
                         let start_x = 20;
                         let card_width = 180;
                         let card_height = 160;
-                        let card_gap = 12;
+                        let card_y = 25;
+                        let spacing = 14;
 
-                        for (idx, item) in state.store.items.iter().take(12).enumerate() {
-                            let card_x = start_x + (idx as i32) * (card_width + card_gap);
-                            let card_y = 20;
+                        for (idx, item) in state.store.items.iter().enumerate() {
+                            let card_x = start_x + (idx as i32) * (card_width + spacing);
+                            if card_x > rc.right {
+                                break;
+                            }
+
                             let card_rc = RECT {
                                 left: card_x,
                                 top: card_y,
@@ -191,42 +264,60 @@ pub mod win32 {
                             };
 
                             let is_selected = idx == state.selected_index;
-                            let card_color = if is_selected {
-                                COLORREF(0x003A3A3A) // Highlight
+
+                            // Card background
+                            let card_bg = if is_selected {
+                                CreateSolidBrush(COLORREF(0x002D2D2D))
                             } else {
-                                COLORREF(0x002A2A2A) // Card
+                                CreateSolidBrush(COLORREF(0x00242424))
                             };
-                            let card_brush = CreateSolidBrush(card_color);
-                            FillRect(mem_dc, &card_rc, card_brush);
-                            let _ = DeleteObject(HGDIOBJ(card_brush.0));
+                            FillRect(mem_dc, &card_rc, card_bg);
+                            let _ = DeleteObject(HGDIOBJ(card_bg.0));
 
-                            // Number badge (1..9)
-                            if idx < 9 {
-                                SetTextColor(mem_dc, COLORREF(0x00888888));
-                                SetBkMode(mem_dc, TRANSPARENT);
-                                let badge = format!("{}", idx + 1);
-                                let wide_badge: Vec<u16> = badge.encode_utf16().collect();
-                                let _ = TextOutW(mem_dc, card_x + 8, card_y + 8, &wide_badge);
-                            }
+                            // Card border (Electric Blue if selected)
+                            let border_pen = if is_selected {
+                                CreatePen(PS_SOLID, 2, COLORREF(0x00FF840A)) // RGB(10, 132, 255)
+                            } else {
+                                CreatePen(PS_SOLID, 1, COLORREF(0x003A3A3A))
+                            };
+                            let old_pen = SelectObject(mem_dc, HGDIOBJ(border_pen.0));
+                            let old_brush = SelectObject(mem_dc, GetStockObject(NULL_BRUSH));
+                            let _ = Rectangle(mem_dc, card_rc.left, card_rc.top, card_rc.right, card_rc.bottom);
+                            let _ = SelectObject(mem_dc, old_pen);
+                            let _ = SelectObject(mem_dc, old_brush);
+                            let _ = DeleteObject(HGDIOBJ(border_pen.0));
 
-                            // App name
-                            if let Some(ref app) = item.app_name {
-                                SetTextColor(mem_dc, COLORREF(0x000A84FF));
-                                SetBkMode(mem_dc, TRANSPARENT);
-                                let wide_app: Vec<u16> = app.encode_utf16().collect();
-                                let _ = TextOutW(mem_dc, card_x + 30, card_y + 8, &wide_app);
-                            }
+                            // Header Text (App Name or Custom Title)
+                            SetTextColor(mem_dc, if item.custom_title.is_some() { COLORREF(0x00FF840A) } else { COLORREF(0x00AAAAAA) });
+                            SetBkMode(mem_dc, TRANSPARENT);
+                            let header_title = item.custom_title.as_deref().unwrap_or(item.app_name.as_deref().unwrap_or("Text"));
+                            let wide_app: Vec<u16> = header_title.encode_utf16().collect();
+                            let mut header_rc = RECT {
+                                left: card_rc.left + 10,
+                                top: card_rc.top + 8,
+                                right: card_rc.right - 10,
+                                bottom: card_rc.top + 26,
+                            };
+                            DrawTextW(
+                                mem_dc,
+                                &mut wide_app.clone(),
+                                &mut header_rc,
+                                DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS,
+                            );
 
-                            // Text snippet preview
+                            // Content Preview Text
                             if let Some(ref text) = item.text_value {
-                                SetTextColor(mem_dc, COLORREF(0x00E0E0E0));
-                                SetBkMode(mem_dc, TRANSPARENT);
-                                let clean_text: String = text.chars().take(80).collect();
+                                SetTextColor(mem_dc, COLORREF(0x00EEEEEE));
                                 let mut text_rc = RECT {
-                                    left: card_x + 10,
-                                    top: card_y + 36,
-                                    right: card_x + card_width - 10,
-                                    bottom: card_y + card_height - 10,
+                                    left: card_rc.left + 10,
+                                    top: card_rc.top + 32,
+                                    right: card_rc.right - 10,
+                                    bottom: card_rc.bottom - 10,
+                                };
+                                let clean_text = if text.len() > 120 {
+                                    format!("{}...", &text[..120])
+                                } else {
+                                    text.clone()
                                 };
                                 let wide_text: Vec<u16> = clean_text.encode_utf16().collect();
                                 DrawTextW(
@@ -277,6 +368,13 @@ pub mod win32 {
                 LRESULT(0)
             }
             WM_DESTROY => {
+                // Remove notification toolbar / tray icon
+                let mut nid = NOTIFYICONDATAW::default();
+                nid.cbSize = std::mem::size_of::<NOTIFYICONDATAW>() as u32;
+                nid.hWnd = hwnd;
+                nid.uID = 1;
+                let _ = Shell_NotifyIconW(NIM_DELETE, &nid);
+
                 let _ = RemoveClipboardFormatListener(hwnd);
                 let _ = unregister(hwnd, 1);
                 PostQuitMessage(0);
@@ -338,6 +436,8 @@ pub mod win32 {
             let x = work_area.left + 24;
             let y = work_area.bottom - height - 12;
 
+            // WS_EX_TOOLWINDOW: Guarantees the window does NOT show an icon/button on the Taskbar!
+            // WS_POPUP: Borderless floating bar.
             let hwnd = CreateWindowExW(
                 WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
                 PCWSTR(class_name.as_ptr()),
@@ -358,6 +458,23 @@ pub mod win32 {
             let _ = DwmSetWindowAttribute(hwnd, DWMWINDOWATTRIBUTE(DWMWA_SYSTEMBACKDROP_TYPE as i32), &backdrop as *const _ as *const _, std::mem::size_of::<u32>() as u32);
             let corner = DWMWCP_ROUND;
             let _ = DwmSetWindowAttribute(hwnd, DWMWINDOWATTRIBUTE(DWMWA_WINDOW_CORNER_PREFERENCE as i32), &corner as *const _ as *const _, std::mem::size_of::<u32>() as u32);
+
+            // Register Notification Area / System Tray (Toolbar) Icon
+            let hicon = LoadIconW(None, IDI_APPLICATION).unwrap_or_default();
+            let mut nid = NOTIFYICONDATAW::default();
+            nid.cbSize = std::mem::size_of::<NOTIFYICONDATAW>() as u32;
+            nid.hWnd = hwnd;
+            nid.uID = 1;
+            nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+            nid.uCallbackMessage = WM_TRAYICON;
+            nid.hIcon = hicon;
+
+            let tip = "PasteFlow - Clipboard Manager\0".encode_utf16().collect::<Vec<u16>>();
+            for (i, &c) in tip.iter().enumerate().take(nid.szTip.len() - 1) {
+                nid.szTip[i] = c;
+            }
+
+            let _ = Shell_NotifyIconW(NIM_ADD, &nid);
 
             // Load storage
             let app_data = std::env::var("APPDATA").unwrap_or_else(|_| ".".to_string());
