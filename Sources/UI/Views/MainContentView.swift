@@ -104,6 +104,7 @@ public struct MainContentView: View {
                     HintPill(key: "1..9", label: "Quick Paste")
                     HintPill(key: "⌘P", label: "Pin")
                     HintPill(key: "⌘C", label: "Copy")
+                    HintPill(key: "R", label: "Rename")
                     HintPill(key: "⌫", label: "Delete")
                     
                     Spacer()
@@ -188,6 +189,10 @@ public struct MainContentView: View {
                 }
             )
         }
+        // Rename Sheet (R)
+        .sheet(item: $store.itemBeingRenamed) { item in
+            RenameModalView(item: item, store: store)
+        }
     }
 }
 
@@ -236,5 +241,88 @@ public struct HintPill: View {
                 .font(.system(size: 10))
                 .foregroundColor(.secondary)
         }
+    }
+}
+
+public struct RenameModalView: View {
+    let item: ClipboardItem
+    @ObservedObject var store: HistoryStore
+    
+    @State private var name: String
+    @ObservedObject private var config = AppConfig.shared
+    
+    public init(item: ClipboardItem, store: HistoryStore) {
+        self.item = item
+        self.store = store
+        self._name = State(initialValue: item.customTitle ?? "")
+    }
+    
+    public var body: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 8) {
+                Image(systemName: "tag.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(config.accentTheme.color)
+                Text(item.customTitle != nil ? "Edit Clip Name" : "Name this Clip")
+                    .font(.system(size: 15, weight: .bold))
+                Spacer()
+                Button {
+                    store.itemBeingRenamed = nil
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            
+            // Preview excerpt of the clip
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: item.contentType.iconName)
+                    .font(.system(size: 12))
+                    .foregroundColor(config.accentTheme.color)
+                Text(item.textValue != nil ? String(item.textValue!.prefix(100)) : item.displayTitle)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                Spacer()
+            }
+            .padding(10)
+            .background(Color.white.opacity(0.04))
+            .cornerRadius(8)
+            
+            TextField("e.g. WiFi Password, GitLab Token, SSH Key...", text: $name)
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 13))
+            
+            HStack(spacing: 10) {
+                if item.customTitle != nil {
+                    Button("Remove Name", role: .destructive) {
+                        store.renameItem(id: item.id, newTitle: nil)
+                        store.itemBeingRenamed = nil
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                
+                Spacer()
+                
+                Button("Cancel") {
+                    store.itemBeingRenamed = nil
+                }
+                .keyboardShortcut(.cancelAction)
+                .controlSize(.small)
+                
+                Button("Save Name") {
+                    store.renameItem(id: item.id, newTitle: name)
+                    store.itemBeingRenamed = nil
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(config.accentTheme.color)
+                .keyboardShortcut(.defaultAction)
+                .controlSize(.small)
+            }
+        }
+        .padding(22)
+        .frame(width: 380)
     }
 }

@@ -72,6 +72,8 @@ pub struct ClipboardItem {
     pub checksum: String,
     #[serde(default)]
     pub pinboard_ids: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_title: Option<String>,
 }
 
 impl ClipboardItem {
@@ -89,6 +91,7 @@ impl ClipboardItem {
             created_at: "2026-11-24T00:00:00Z".to_string(),
             checksum,
             pinboard_ids: Vec::new(),
+            custom_title: None,
         }
     }
 }

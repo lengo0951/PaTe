@@ -12,6 +12,7 @@ public class FloatingPanel: NSPanel {
     public var onDeletePressed: (() -> Void)?
     public var onPinPressed: (() -> Void)?
     public var onCopyPressed: (() -> Void)?
+    public var onRenamePressed: (() -> Void)?
     
     public init(contentRect: NSRect) {
         super.init(
@@ -95,6 +96,14 @@ public class FloatingPanel: NSPanel {
         if event.keyCode == 8 && event.modifierFlags.contains(.command) { // 'c'
             onCopyPressed?()
             return
+        }
+        
+        // Cmd + R (or 'R' when not searching) to Rename
+        if event.keyCode == 15 { // 'r'
+            if event.modifierFlags.contains(.command) || HistoryStore.shared.searchQuery.isEmpty {
+                onRenamePressed?()
+                return
+            }
         }
         
         // Number keys 1-9 (keyCodes: 18=1, 19=2, 20=3, 21=4, 23=5, 22=6, 26=7, 28=8, 25=9)

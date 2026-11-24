@@ -15,6 +15,7 @@ public class HistoryStore: ObservableObject {
     @Published public var isMonitoringPaused: Bool = false
     @Published public var selectedItemID: String? = nil
     @Published public var activeQuickLookItem: ClipboardItem? = nil
+    @Published public var itemBeingRenamed: ClipboardItem? = nil
     @Published public var ignoredBundleIDs: [String] = [
         "com.agilebits.onepassword",
         "com.bitwarden.desktop",
@@ -97,6 +98,9 @@ public class HistoryStore: ObservableObject {
         let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if !query.isEmpty {
             result = result.filter { item in
+                if let title = item.customTitle, title.lowercased().contains(query) {
+                    return true
+                }
                 if let text = item.textValue, text.lowercased().contains(query) {
                     return true
                 }
@@ -170,6 +174,14 @@ public class HistoryStore: ObservableObject {
             } else {
                 items[index].pinboardIDs.append(pinboardID)
             }
+            saveData()
+        }
+    }
+    
+    public func renameItem(id: String, newTitle: String?) {
+        if let index = items.firstIndex(where: { $0.id == id }) {
+            let clean = newTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
+            items[index].customTitle = (clean?.isEmpty == false) ? clean : nil
             saveData()
         }
     }

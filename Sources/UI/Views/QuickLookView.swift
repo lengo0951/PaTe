@@ -62,14 +62,45 @@ public struct QuickLookView: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.appName ?? item.contentType.displayName)
-                        .font(.system(size: 13, weight: .bold))
-                    Text("\(item.contentType.displayName) • \(item.formattedRelativeTime)")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                    if let title = item.customTitle, !title.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "tag.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(AppConfig.shared.accentTheme.color)
+                            Text(title)
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(AppConfig.shared.accentTheme.color)
+                        }
+                        Text("\(item.appName ?? item.contentType.displayName) • \(item.formattedRelativeTime)")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text(item.appName ?? item.contentType.displayName)
+                            .font(.system(size: 13, weight: .bold))
+                        Text("\(item.contentType.displayName) • \(item.formattedRelativeTime)")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
                 Spacer()
+                
+                // Rename button
+                Button {
+                    store.itemBeingRenamed = item
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "pencil")
+                        Text(item.customTitle != nil ? "Edit Name" : "Name")
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(0.06))
+                    .cornerRadius(5)
+                }
+                .buttonStyle(.plain)
+                .help("Rename this clip (R)")
                 
                 // Navigation Chevrons
                 HStack(spacing: 4) {
@@ -340,6 +371,12 @@ public struct QuickLookView: View {
                 // Cmd + C = 8
                 if event.keyCode == 8 && event.modifierFlags.contains(.command) {
                     copyToClipboard()
+                    return nil
+                }
+                
+                // R = 15 (Rename)
+                if event.keyCode == 15 {
+                    store.itemBeingRenamed = item
                     return nil
                 }
                 

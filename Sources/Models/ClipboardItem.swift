@@ -16,6 +16,7 @@ public struct ClipboardItem: Identifiable, Codable, Equatable {
     public var createdAt: Date
     public var checksum: String
     public var pinboardIDs: [String]
+    public var customTitle: String?
     
     // Kept optional for backward compatibility during JSON decode if present
     public var appIconData: Data? = nil
@@ -34,7 +35,8 @@ public struct ClipboardItem: Identifiable, Codable, Equatable {
         appName: String? = nil,
         createdAt: Date = Date(),
         checksum: String,
-        pinboardIDs: [String] = []
+        pinboardIDs: [String] = [],
+        customTitle: String? = nil
     ) {
         self.id = id
         self.contentType = contentType
@@ -50,6 +52,7 @@ public struct ClipboardItem: Identifiable, Codable, Equatable {
         self.createdAt = createdAt
         self.checksum = checksum
         self.pinboardIDs = pinboardIDs
+        self.customTitle = customTitle
         self.appIconData = nil
     }
     
@@ -83,6 +86,9 @@ public struct ClipboardItem: Identifiable, Codable, Equatable {
     }
     
     public var displayTitle: String {
+        if let custom = customTitle, !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return custom
+        }
         switch contentType {
         case .color:
             return textValue?.uppercased() ?? "Color"

@@ -149,6 +149,10 @@ public struct ItemCardView: View {
                 SoundManager.shared.playCopy()
             }
             
+            Button("Rename Clip... (R)") {
+                store.itemBeingRenamed = item
+            }
+            
             Divider()
             
             Menu("Pin to Pinboard") {

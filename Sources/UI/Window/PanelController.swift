@@ -147,6 +147,16 @@ public class PanelController: NSObject {
             }
         }
         
+        newPanel.onRenamePressed = {
+            let items = HistoryStore.shared.filteredItems
+            if let selectedID = HistoryStore.shared.selectedItemID,
+               let item = items.first(where: { $0.id == selectedID }) {
+                HistoryStore.shared.itemBeingRenamed = item
+            } else if let first = items.first {
+                HistoryStore.shared.itemBeingRenamed = first
+            }
+        }
+        
         self.panel = newPanel
     }
     

@@ -88,6 +88,12 @@ impl HistoryStore {
         true
     }
 
+    pub fn rename_item(&mut self, id: &str, new_title: Option<String>) {
+        if let Some(item) = self.items.iter_mut().find(|it| it.id == id) {
+            item.custom_title = new_title.filter(|t| !t.trim().is_empty());
+        }
+    }
+
     pub fn load(&mut self) {
         let config_file = self.storage_dir.join("config.json");
         if config_file.exists() {
