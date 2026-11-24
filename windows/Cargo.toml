@@ -5,6 +5,10 @@ edition = "2021"
 authors = ["Quốc Ngô <@lengo0951>"]
 description = "Native Windows clipboard manager built with Rust and Win32 APIs."
 
+[[bin]]
+name = "pasteflow"
+path = "src/main.rs"
+
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

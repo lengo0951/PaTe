@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 #[cfg(windows)]
 fn main() -> Result<(), windows::core::Error> {
     pasteflow_windows::ui::window::win32::run_app()
