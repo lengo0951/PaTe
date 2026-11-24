@@ -195,7 +195,7 @@ PasteFlow/
 
 ## ⚡ Core Engineering Directives
 
-PasteFlow adheres to strict engineering rules codified in [`GEMINI.md`](GEMINI.md) and [`AGENTS.md`](AGENTS.md):
+PasteFlow adheres to strict engineering rules:
 
 1. **Dual-Platform Parity (macOS & Windows)**:
    - Any feature, bugfix, UI refinement, or schema update **MUST be implemented and tested for BOTH macOS and Windows** simultaneously.

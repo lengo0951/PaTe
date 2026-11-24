@@ -15,6 +15,14 @@ windows/target/
 .build/
 *.o
 
+# AI Plans & Task Scratchpads
+plans/
+*.plan.md
+
+# Package & Release Notes metadata
+package.json
+RELEASE_NOTES_*.md
+
 # QuocNgoKit local private toolkit & runtime (Keep private)
 .agents/
 .claude/
@@ -24,15 +32,13 @@ windows/target/
 docs/
 AGENTS.md
 GEMINI.md
+RULES.md
 INSTALL.txt
 guide/
 papers/
 scripts/
 qn
 
-# Explicitly track essential PasteFlow assets and workspace rules
+# Explicitly track essential PasteFlow assets
 !Assets/
 !Assets/**
-!GEMINI.md
-!AGENTS.md
-!RULES.md
