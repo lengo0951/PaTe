@@ -80,12 +80,13 @@ public class PasteSimulator {
         }
     }
     
+    private static let eventSource = CGEventSource(stateID: .hidSystemState)
+    
     private func simulateCmdV() {
-        let source = CGEventSource(stateID: .hidSystemState)
         let vKeyCode: CGKeyCode = 0x09 // kVK_ANSI_V
         
-        guard let keyDown = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: true),
-              let keyUp = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: false) else {
+        guard let keyDown = CGEvent(keyboardEventSource: Self.eventSource, virtualKey: vKeyCode, keyDown: true),
+              let keyUp = CGEvent(keyboardEventSource: Self.eventSource, virtualKey: vKeyCode, keyDown: false) else {
             return
         }
         

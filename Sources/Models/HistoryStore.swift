@@ -51,74 +51,73 @@ public class HistoryStore: ObservableObject {
     private let fileManager = FileManager.default
     private let imageCache = NSCache<NSString, NSImage>()
     
-    private var storageDirectory: URL {
-        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("PasteFlow", isDirectory: true)
-        if !fileManager.fileExists(atPath: dir.path) {
-            try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
-        }
-        return dir
-    }
-    
-    private var imagesDirectory: URL {
-        let dir = storageDirectory.appendingPathComponent("images", isDirectory: true)
-        if !fileManager.fileExists(atPath: dir.path) {
-            try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
-        }
-        return dir
-    }
-    
-    private var historyFile: URL {
-        storageDirectory.appendingPathComponent("history.json")
-    }
-    
-    private var pinboardsFile: URL {
-        storageDirectory.appendingPathComponent("pinboards.json")
-    }
+    private let storageDirectory: URL
+    private let imagesDirectory: URL
+    private let historyFile: URL
+    private let pinboardsFile: URL
+    private var saveTask: Task<Void, Never>?
     
     public init() {
         imageCache.countLimit = 30 // Bound image memory cache
+        
+        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let storeDir = appSupport.appendingPathComponent("PasteFlow", isDirectory: true)
+        if !fileManager.fileExists(atPath: storeDir.path) {
+            try? fileManager.createDirectory(at: storeDir, withIntermediateDirectories: true)
+        }
+        self.storageDirectory = storeDir
+        
+        let imgDir = storeDir.appendingPathComponent("images", isDirectory: true)
+        if !fileManager.fileExists(atPath: imgDir.path) {
+            try? fileManager.createDirectory(at: imgDir, withIntermediateDirectories: true)
+        }
+        self.imagesDirectory = imgDir
+        
+        self.historyFile = storeDir.appendingPathComponent("history.json")
+        self.pinboardsFile = storeDir.appendingPathComponent("pinboards.json")
+        
         loadData()
     }
     
     public var filteredItems: [ClipboardItem] {
-        if selectedPinboardID == "history" && selectedContentType == nil && searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        let trimmedQuery = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isDefaultHistory = (selectedPinboardID == "history")
+        let hasNoTypeFilter = (selectedContentType == nil)
+        let hasNoQuery = trimmedQuery.isEmpty
+        
+        // Fast-path: O(1) return original array directly
+        if isDefaultHistory && hasNoTypeFilter && hasNoQuery {
             return items
         }
         
-        var result = items
+        let targetPinboard = isDefaultHistory ? nil : selectedPinboardID
+        let targetType = selectedContentType
         
-        // Filter by pinboard
-        if selectedPinboardID != "history" {
-            result = result.filter { $0.pinboardIDs.contains(selectedPinboardID) }
-        }
-        
-        // Filter by content type
-        if let type = selectedContentType {
-            result = result.filter { $0.contentType == type }
-        }
-        
-        // Filter by search query
-        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if !query.isEmpty {
-            result = result.filter { item in
-                if let title = item.customTitle, title.lowercased().contains(query) {
+        // Single-pass O(N) evaluation with zero intermediate array allocations
+        return items.filter { item in
+            if let pb = targetPinboard, !item.pinboardIDs.contains(pb) {
+                return false
+            }
+            if let type = targetType, item.contentType != type {
+                return false
+            }
+            if !hasNoQuery {
+                if let title = item.customTitle, title.localizedCaseInsensitiveContains(trimmedQuery) {
                     return true
                 }
-                if let text = item.textValue, text.lowercased().contains(query) {
+                if let text = item.textValue, text.localizedCaseInsensitiveContains(trimmedQuery) {
                     return true
                 }
-                if let app = item.appName, app.lowercased().contains(query) {
+                if let app = item.appName, app.localizedCaseInsensitiveContains(trimmedQuery) {
                     return true
                 }
-                if let files = item.filePaths, files.contains(where: { $0.lowercased().contains(query) }) {
+                if let files = item.filePaths, files.contains(where: { $0.localizedCaseInsensitiveContains(trimmedQuery) }) {
                     return true
                 }
                 return false
             }
+            return true
         }
-        
-        return result
     }
     
     public func addItem(_ item: ClipboardItem) {
@@ -233,21 +232,37 @@ public class HistoryStore: ObservableObject {
         return nil
     }
     
-    public func saveData() {
-        do {
-            let encoder = JSONEncoder()
-            // Make sure appIconData is always nil when saving
-            var cleanItems = items
-            for i in cleanItems.indices {
-                cleanItems[i].appIconData = nil
+    public func saveData(immediately: Bool = false) {
+        if immediately {
+            performSave()
+            return
+        }
+        
+        saveTask?.cancel()
+        saveTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 250_000_000) // 250ms debounce
+            guard !Task.isCancelled else { return }
+            self?.performSave()
+        }
+    }
+    
+    private func performSave() {
+        let itemsSnapshot = self.items
+        let pinboardsSnapshot = self.pinboards
+        let historyURL = self.historyFile
+        let pinboardsURL = self.pinboardsFile
+        
+        Task.detached(priority: .utility) {
+            do {
+                let encoder = JSONEncoder()
+                let itemsData = try encoder.encode(itemsSnapshot)
+                try itemsData.write(to: historyURL, options: .atomic)
+                
+                let pbData = try encoder.encode(pinboardsSnapshot)
+                try pbData.write(to: pinboardsURL, options: .atomic)
+            } catch {
+                print("Error saving PasteFlow data: \(error)")
             }
-            let itemsData = try encoder.encode(cleanItems)
-            try itemsData.write(to: historyFile, options: .atomic)
-            
-            let pbData = try encoder.encode(pinboards)
-            try pbData.write(to: pinboardsFile, options: .atomic)
-        } catch {
-            print("Error saving PasteFlow data: \(error)")
         }
     }
     

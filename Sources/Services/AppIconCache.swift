@@ -5,6 +5,7 @@ public class AppIconCache {
     public static let shared = AppIconCache()
     
     private let cache = NSCache<NSString, NSImage>()
+    private var failedBundleIDs = Set<String>()
     
     private init() {
         cache.countLimit = 64
@@ -12,8 +13,9 @@ public class AppIconCache {
     
     public func icon(for bundleID: String?) -> NSImage? {
         guard let bundleID = bundleID, !bundleID.isEmpty else { return nil }
-        let key = bundleID as NSString
+        if failedBundleIDs.contains(bundleID) { return nil }
         
+        let key = bundleID as NSString
         if let cached = cache.object(forKey: key) {
             return cached
         }
@@ -37,6 +39,7 @@ public class AppIconCache {
             return resizedIcon
         }
         
+        failedBundleIDs.insert(bundleID)
         return nil
     }
 }

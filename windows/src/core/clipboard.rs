@@ -12,15 +12,24 @@ pub struct ClipboardEvent {
 #[cfg(windows)]
 pub mod win32 {
     use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
     use windows::Win32::Foundation::*;
     use windows::Win32::System::DataExchange::*;
     use windows::Win32::System::Memory::*;
     use windows::core::*;
 
+    static AUTO_GEN_FMT_ID: AtomicU32 = AtomicU32::new(0);
+
     pub fn get_auto_generated_format_id() -> u32 {
+        let cached = AUTO_GEN_FMT_ID.load(Ordering::Relaxed);
+        if cached != 0 {
+            return cached;
+        }
         unsafe {
             let wide: Vec<u16> = AUTO_GENERATED_FORMAT_NAME.encode_utf16().chain(std::iter::once(0)).collect();
-            RegisterClipboardFormatW(PCWSTR(wide.as_ptr()))
+            let id = RegisterClipboardFormatW(PCWSTR(wide.as_ptr()));
+            AUTO_GEN_FMT_ID.store(id, Ordering::Relaxed);
+            id
         }
     }
 

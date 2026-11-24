@@ -66,7 +66,13 @@ public struct ClipboardItem: Identifiable, Codable, Equatable {
     
     public var lineCount: Int {
         guard let text = textValue else { return 0 }
-        return text.components(separatedBy: .newlines).count
+        var count = 1
+        for scalar in text.unicodeScalars {
+            if scalar == "\n" {
+                count += 1
+            }
+        }
+        return count
     }
     
     public var formattedRelativeTime: String {

@@ -141,21 +141,36 @@ public class ClipboardMonitor {
     private func classifyTextContent(_ text: String) -> ContentType {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // Check Color: #FFF, #FFFFFF, #FFFFFFFF, rgb(...), rgba(...), hsl(...)
-        if trimmed.range(of: #"^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"#, options: .regularExpression) != nil {
-            return .color
-        }
-        if trimmed.range(of: #"^(rgb|rgba|hsl|hsla)\(\s*\d+.*\)$"#, options: [.regularExpression, .caseInsensitive]) != nil {
-            return .color
+        // 1. Fast Color Check: #FFF, #FFFFFF, #FFFFFFFF without regex overhead
+        if trimmed.hasPrefix("#") {
+            let count = trimmed.count
+            if count == 4 || count == 7 || count == 9 {
+                let hexChars = trimmed.dropFirst()
+                if hexChars.allSatisfy({ $0.isHexDigit }) {
+                    return .color
+                }
+            }
+        } else if trimmed.hasPrefix("rgb(") || trimmed.hasPrefix("rgba(") || trimmed.hasPrefix("hsl(") || trimmed.hasPrefix("hsla(") {
+            if trimmed.hasSuffix(")") {
+                return .color
+            }
         }
         
-        // Check URL / Link
+        // 2. Fast URL / Link Check
         if (trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") || trimmed.hasPrefix("ftp://")),
            let url = URL(string: trimmed), url.scheme != nil, url.host != nil {
             return .link
         }
         
-        // Check Code
+        // 3. Fast Code check with early termination & zero array allocation for newlines
+        var newlineCount = 0
+        for scalar in text.unicodeScalars {
+            if scalar == "\n" {
+                newlineCount += 1
+                if newlineCount > 3 { break }
+            }
+        }
+        
         let codeIndicators = [
             "func ", "def ", "function ", "import ", "const ", "let ", "var ",
             "class ", "struct ", "enum ", "public ", "private ", "return ",
@@ -165,20 +180,28 @@ public class ClipboardMonitor {
         for indicator in codeIndicators {
             if text.contains(indicator) {
                 codeScore += 1
+                if codeScore >= 2 { return .code }
             }
         }
         if (text.contains("{") && text.contains("}")) || (text.contains("(") && text.contains(");")) {
             codeScore += 1
         }
-        if codeScore >= 2 || (codeScore >= 1 && text.components(separatedBy: .newlines).count > 3) {
+        if codeScore >= 2 || (codeScore >= 1 && newlineCount > 3) {
             return .code
         }
         
         return .text
     }
     
+    private static let hexDigits: [UInt8] = Array("0123456789abcdef".utf8)
     private func computeSHA256(data: Data) -> String {
         let hash = SHA256.hash(data: data)
-        return hash.compactMap { String(format: "%02x", $0) }.joined()
+        var hexBytes = [UInt8]()
+        hexBytes.reserveCapacity(64)
+        for byte in hash {
+            hexBytes.append(Self.hexDigits[Int(byte >> 4)])
+            hexBytes.append(Self.hexDigits[Int(byte & 0x0F)])
+        }
+        return String(decoding: hexBytes, as: UTF8.self)
     }
 }

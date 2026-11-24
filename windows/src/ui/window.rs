@@ -69,8 +69,7 @@ pub mod win32 {
         match msg {
             WM_CLIPBOARDUPDATE => {
                 if let Some(ref state_arc) = GLOBAL_STATE {
-                    if !is_self_paste(hwnd) {
-                        if let Some(text) = read_clipboard_text(hwnd) {
+                    if let Some(text) = read_clipboard_text(hwnd) {
                             let mut app_name = None;
                             let fg_hwnd = GetForegroundWindow();
                             if fg_hwnd.0 != std::ptr::null_mut() {
@@ -98,7 +97,6 @@ pub mod win32 {
                                 let _ = InvalidateRect(hwnd, None, true);
                             }
                         }
-                    }
                 }
                 LRESULT(0)
             }
@@ -308,6 +306,14 @@ pub mod win32 {
                         let card_y = 25;
                         let spacing = 14;
 
+                        // Pre-allocate GDI brushes & pens once outside loop (Zero allocation churn per frame!)
+                        let card_bg_sel = CreateSolidBrush(COLORREF(0x002D2D2D));
+                        let card_bg_norm = CreateSolidBrush(COLORREF(0x00242424));
+                        let border_pen_sel = CreatePen(PS_SOLID, 2, COLORREF(0x00FF840A)); // RGB(10, 132, 255)
+                        let border_pen_norm = CreatePen(PS_SOLID, 1, COLORREF(0x003A3A3A));
+                        let null_brush = GetStockObject(NULL_BRUSH);
+                        let old_brush = SelectObject(mem_dc, null_brush);
+
                         for (idx, item) in state.store.items.iter().enumerate() {
                             let card_x = start_x + (idx as i32) * (card_width + spacing);
                             if card_x > rc.right {
@@ -324,26 +330,13 @@ pub mod win32 {
                             let is_selected = idx == state.selected_index;
 
                             // Card background
-                            let card_bg = if is_selected {
-                                CreateSolidBrush(COLORREF(0x002D2D2D))
-                            } else {
-                                CreateSolidBrush(COLORREF(0x00242424))
-                            };
-                            FillRect(mem_dc, &card_rc, card_bg);
-                            let _ = DeleteObject(HGDIOBJ(card_bg.0));
+                            FillRect(mem_dc, &card_rc, if is_selected { card_bg_sel } else { card_bg_norm });
 
                             // Card border (Electric Blue if selected)
-                            let border_pen = if is_selected {
-                                CreatePen(PS_SOLID, 2, COLORREF(0x00FF840A)) // RGB(10, 132, 255)
-                            } else {
-                                CreatePen(PS_SOLID, 1, COLORREF(0x003A3A3A))
-                            };
-                            let old_pen = SelectObject(mem_dc, HGDIOBJ(border_pen.0));
-                            let old_brush = SelectObject(mem_dc, GetStockObject(NULL_BRUSH));
+                            let cur_pen = if is_selected { border_pen_sel } else { border_pen_norm };
+                            let old_pen = SelectObject(mem_dc, HGDIOBJ(cur_pen.0));
                             let _ = Rectangle(mem_dc, card_rc.left, card_rc.top, card_rc.right, card_rc.bottom);
                             let _ = SelectObject(mem_dc, old_pen);
-                            let _ = SelectObject(mem_dc, old_brush);
-                            let _ = DeleteObject(HGDIOBJ(border_pen.0));
 
                             // Header Text (App Name or Custom Title)
                             SetTextColor(mem_dc, if item.custom_title.is_some() { COLORREF(0x00FF840A) } else { COLORREF(0x00AAAAAA) });
@@ -386,6 +379,13 @@ pub mod win32 {
                                 );
                             }
                         }
+
+                        // Cleanup reusable GDI objects
+                        let _ = SelectObject(mem_dc, old_brush);
+                        let _ = DeleteObject(HGDIOBJ(card_bg_sel.0));
+                        let _ = DeleteObject(HGDIOBJ(card_bg_norm.0));
+                        let _ = DeleteObject(HGDIOBJ(border_pen_sel.0));
+                        let _ = DeleteObject(HGDIOBJ(border_pen_norm.0));
 
                         // Quick Look overlay if active
                         if state.quicklook_active {

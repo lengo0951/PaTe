@@ -68,20 +68,11 @@ impl HistoryStore {
         self.items.insert(0, item);
 
         // 4. Enforce LRU cap (do not evict pinned items)
-        if self.items.len() > self.config.max_items {
-            let mut unpinned_indices: Vec<usize> = self
-                .items
-                .iter()
-                .enumerate()
-                .filter(|(_, i)| i.pinboard_ids.is_empty())
-                .map(|(idx, _)| idx)
-                .collect();
-
-            while self.items.len() > self.config.max_items && !unpinned_indices.is_empty() {
-                let remove_idx = unpinned_indices.pop().unwrap();
-                if remove_idx < self.items.len() {
-                    self.items.remove(remove_idx);
-                }
+        while self.items.len() > self.config.max_items {
+            if let Some(idx) = self.items.iter().rposition(|i| i.pinboard_ids.is_empty()) {
+                self.items.remove(idx);
+            } else {
+                break;
             }
         }
 
@@ -127,15 +118,15 @@ impl HistoryStore {
         let _ = fs::create_dir_all(&self.storage_dir);
 
         let config_file = self.storage_dir.join("config.json");
-        let data = serde_json::to_string_pretty(&self.config)?;
+        let data = serde_json::to_string(&self.config)?;
         fs::write(config_file, data)?;
 
         let pinboards_file = self.storage_dir.join("pinboards.json");
-        let data = serde_json::to_string_pretty(&self.pinboards)?;
+        let data = serde_json::to_string(&self.pinboards)?;
         fs::write(pinboards_file, data)?;
 
         let history_file = self.storage_dir.join("history.json");
-        let data = serde_json::to_string_pretty(&self.items)?;
+        let data = serde_json::to_string(&self.items)?;
         fs::write(history_file, data)?;
 
         Ok(())
