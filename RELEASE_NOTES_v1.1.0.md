@@ -45,6 +45,6 @@
 ### 🔐 SHA-256 Checksums
 
 ```text
-0b971923ccf0b16dc6f25def4b6cd059130838a5ebb1c8bd98e620a4bfaef5eb  PasteFlow-1.1.0.dmg
+87172c81bfeb948641cb4973e66c5739e5ac02f477cc38d31b919864a779ef69  PasteFlow-1.1.0.dmg
 8f4d5f15143b3ce5f95db215947824dfab8a4b99eb7688acce56ca658e02f1eb  PasteFlow-v1.1.0-windows.zip
 ```
