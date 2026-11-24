@@ -9,6 +9,7 @@ public struct ItemCardView: View {
     let onPaste: (ClipboardItem, Bool) -> Void
     let onSelect: (ClipboardItem) -> Void
     
+    @ObservedObject private var config = AppConfig.shared
     @State private var isHovered: Bool = false
     
     private var appIcon: NSImage? {
@@ -27,7 +28,7 @@ public struct ItemCardView: View {
                 } else {
                     Image(systemName: item.contentType.iconName)
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(config.accentTheme.color)
                 }
                 
                 Text(item.appName ?? item.contentType.displayName)
@@ -87,10 +88,14 @@ public struct ItemCardView: View {
                 if index < 9 {
                     Text("\(index + 1)")
                         .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundColor(Color.primary.opacity(0.7))
+                        .foregroundColor(isSelected ? config.accentTheme.color : Color.primary.opacity(0.7))
                         .frame(width: 18, height: 18)
-                        .background(Color.primary.opacity(0.08))
+                        .background(isSelected ? config.accentTheme.color.opacity(0.15) : Color.primary.opacity(0.08))
                         .cornerRadius(4)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(isSelected ? config.accentTheme.color.opacity(0.5) : Color.clear, lineWidth: 1)
+                        )
                 }
             }
             .padding(.horizontal, 10)
@@ -104,11 +109,16 @@ public struct ItemCardView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 14)
                 .stroke(
-                    isSelected ? Color.blue : (isHovered ? Color.white.opacity(0.35) : Color.white.opacity(0.12)),
+                    isSelected ? config.accentTheme.color : (isHovered ? Color.white.opacity(0.35) : Color.white.opacity(0.12)),
                     lineWidth: isSelected ? 2 : 1
                 )
         )
-        .shadow(color: Color.black.opacity(isSelected ? 0.35 : 0.18), radius: isSelected ? 8 : 4, x: 0, y: 2)
+        .shadow(
+            color: isSelected ? config.accentTheme.color.opacity(0.35) : Color.black.opacity(0.18),
+            radius: isSelected ? 8 : 4,
+            x: 0,
+            y: 2
+        )
         .scaleEffect(isHovered ? 1.015 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: isHovered)
         .animation(.easeInOut(duration: 0.15), value: isSelected)
@@ -116,7 +126,7 @@ public struct ItemCardView: View {
             isHovered = hovering
         }
         .onTapGesture(count: 2) {
-            onPaste(item, false)
+            onPaste(item, config.pastePlainTextByDefault)
         }
         .onTapGesture(count: 1) {
             onSelect(item)
@@ -131,7 +141,7 @@ public struct ItemCardView: View {
             Button("Quick Look Preview (Space)") {
                 store.activeQuickLookItem = item
             }
-            Button("Copy to Clipboard") {
+            Button("Copy to Clipboard (⌘C)") {
                 NSPasteboard.general.clearContents()
                 if let text = item.textValue {
                     NSPasteboard.general.setString(text, forType: .string)
@@ -161,7 +171,7 @@ public struct ItemCardView: View {
             Button(role: .destructive) {
                 store.removeItem(id: item.id)
             } label: {
-                Label("Delete Item", systemImage: "trash")
+                Label("Delete Item (⌫)", systemImage: "trash")
             }
         }
     }

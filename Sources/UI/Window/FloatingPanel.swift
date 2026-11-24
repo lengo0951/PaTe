@@ -10,6 +10,8 @@ public class FloatingPanel: NSPanel {
     public var onNavigateLeft: (() -> Void)?
     public var onNavigateRight: (() -> Void)?
     public var onDeletePressed: (() -> Void)?
+    public var onPinPressed: (() -> Void)?
+    public var onCopyPressed: (() -> Void)?
     
     public init(contentRect: NSRect) {
         super.init(
@@ -81,15 +83,37 @@ public class FloatingPanel: NSPanel {
             return
         }
         
+        // Cmd + P (or 'P' when not searching) to toggle Pin
+        if event.keyCode == 35 { // 'p'
+            if event.modifierFlags.contains(.command) || HistoryStore.shared.searchQuery.isEmpty {
+                onPinPressed?()
+                return
+            }
+        }
+        
+        // Cmd + C to copy to clipboard
+        if event.keyCode == 8 && event.modifierFlags.contains(.command) { // 'c'
+            onCopyPressed?()
+            return
+        }
+        
         // Number keys 1-9 (keyCodes: 18=1, 19=2, 20=3, 21=4, 23=5, 22=6, 26=7, 28=8, 25=9)
         let numberKeyCodes: [UInt16: Int] = [
             18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9
         ]
         if let number = numberKeyCodes[event.keyCode] {
-            // Only trigger quick paste if search query is empty or cmd modifier is used
-            if HistoryStore.shared.searchQuery.isEmpty || event.modifierFlags.contains(.command) {
-                onQuickPastePressed?(number)
-                return
+            // Check if user required Cmd+1..9 or allows single key
+            let requiresCmd = AppConfig.shared.quickPasteWithCmd
+            if requiresCmd {
+                if event.modifierFlags.contains(.command) {
+                    onQuickPastePressed?(number)
+                    return
+                }
+            } else {
+                if HistoryStore.shared.searchQuery.isEmpty || event.modifierFlags.contains(.command) {
+                    onQuickPastePressed?(number)
+                    return
+                }
             }
         }
         

@@ -31,13 +31,14 @@ public struct MainContentView: View {
     @ObservedObject var store: HistoryStore
     let onPaste: (ClipboardItem, Bool) -> Void
     
+    @ObservedObject private var config = AppConfig.shared
     @State private var isAddingPinboard: Bool = false
     @State private var newPinboardName: String = ""
     @State private var newPinboardColor: String = "#0A84FF"
     @State private var isSettingsPresented: Bool = false
     
     let colorPalette = [
-        "#0A84FF", "#30D158", "#FF9F0A", "#FF453A", "#BF5AF2", "#64D2FF", "#FF375F", "#FFD60A"
+        "#0A84FF", "#30D158", "#FF9F0A", "#FF453A", "#BF5AF2", "#64D2FF", "#FF375F", "#8E8E93"
     ]
     
     public var body: some View {
@@ -54,7 +55,8 @@ public struct MainContentView: View {
                 FilterPill(
                     title: "All",
                     icon: "square.grid.2x2",
-                    isSelected: store.selectedContentType == nil
+                    isSelected: store.selectedContentType == nil,
+                    accentColor: config.accentTheme.color
                 ) {
                     store.selectedContentType = nil
                 }
@@ -63,7 +65,8 @@ public struct MainContentView: View {
                     FilterPill(
                         title: type.displayName,
                         icon: type.iconName,
-                        isSelected: store.selectedContentType == type
+                        isSelected: store.selectedContentType == type,
+                        accentColor: config.accentTheme.color
                     ) {
                         store.selectedContentType = (store.selectedContentType == type ? nil : type)
                     }
@@ -72,7 +75,7 @@ public struct MainContentView: View {
                 Spacer()
                 
                 Text("\(store.filteredItems.count) clips")
-                    .font(.system(size: 11))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
             }
             .padding(.horizontal, 16)
@@ -87,9 +90,34 @@ public struct MainContentView: View {
                 onPaste: onPaste
             )
             .frame(maxHeight: .infinity)
+            
+            // MARK: - Bottom Shortcut Hint Bar (Ergonomic Footer)
+            if config.showShortcutHints {
+                Divider()
+                    .opacity(0.2)
+                
+                HStack(spacing: 12) {
+                    HintPill(key: "⏎", label: "Paste")
+                    HintPill(key: "⌥⏎", label: "Plain Text")
+                    HintPill(key: "Space", label: "Preview")
+                    HintPill(key: "← →", label: "Browse")
+                    HintPill(key: "1..9", label: "Quick Paste")
+                    HintPill(key: "⌘P", label: "Pin")
+                    HintPill(key: "⌘C", label: "Copy")
+                    HintPill(key: "⌫", label: "Delete")
+                    
+                    Spacer()
+                    
+                    HintPill(key: "Esc", label: "Close")
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(Color.black.opacity(0.15))
+            }
         }
-        .frame(height: 290)
-        .background(VisualEffectBackground(material: .popover, blendingMode: .behindWindow))
+        .frame(height: config.showShortcutHints ? 318 : 290)
+        .background(VisualEffectBackground(material: config.backdropMaterial.material, blendingMode: .behindWindow))
+        .preferredColorScheme(config.appearanceMode.colorScheme)
         .cornerRadius(18)
         .overlay(
             RoundedRectangle(cornerRadius: 18)
@@ -136,6 +164,7 @@ public struct MainContentView: View {
                     }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
+                    .tint(config.accentTheme.color)
                 }
             }
             .padding(24)
@@ -166,6 +195,7 @@ public struct FilterPill: View {
     let title: String
     let icon: String
     let isSelected: Bool
+    let accentColor: Color
     let action: () -> Void
     
     public var body: some View {
@@ -180,10 +210,31 @@ public struct FilterPill: View {
             .padding(.vertical, 3)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? Color.blue : Color.white.opacity(0.08))
+                    .fill(isSelected ? accentColor : Color.white.opacity(0.08))
             )
             .foregroundColor(isSelected ? .white : .secondary)
         }
         .buttonStyle(.plain)
+    }
+}
+
+public struct HintPill: View {
+    let key: String
+    let label: String
+    
+    public var body: some View {
+        HStack(spacing: 4) {
+            Text(key)
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1.5)
+                .background(Color.white.opacity(0.12))
+                .cornerRadius(3)
+                .foregroundColor(.primary)
+            
+            Text(label)
+                .font(.system(size: 10))
+                .foregroundColor(.secondary)
+        }
     }
 }

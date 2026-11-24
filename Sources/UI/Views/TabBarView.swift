@@ -5,6 +5,8 @@ public struct TabBarView: View {
     @Binding var isAddingPinboard: Bool
     @Binding var isSettingsPresented: Bool
     
+    @ObservedObject private var config = AppConfig.shared
+    
     public var body: some View {
         HStack(spacing: 12) {
             // Pinboards Tab List
@@ -28,11 +30,11 @@ public struct TabBarView: View {
                             .padding(.vertical, 6)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(store.selectedPinboardID == pinboard.id ? Color.blue.opacity(0.2) : Color.white.opacity(0.06))
+                                    .fill(store.selectedPinboardID == pinboard.id ? config.accentTheme.color.opacity(0.2) : Color.white.opacity(0.06))
                             )
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .stroke(store.selectedPinboardID == pinboard.id ? Color.blue.opacity(0.5) : Color.clear, lineWidth: 1)
+                                    .stroke(store.selectedPinboardID == pinboard.id ? config.accentTheme.color.opacity(0.5) : Color.clear, lineWidth: 1)
                             )
                         }
                         .buttonStyle(.plain)
@@ -70,12 +72,12 @@ public struct TabBarView: View {
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(store.searchQuery.isEmpty ? .secondary : config.accentTheme.color)
                 
-                TextField("Search history...", text: $store.searchQuery)
+                TextField("Search history... (⌘F)", text: $store.searchQuery)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
-                    .frame(width: 140)
+                    .frame(width: 150)
                 
                 if !store.searchQuery.isEmpty {
                     Button {
@@ -90,11 +92,11 @@ public struct TabBarView: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(Color.black.opacity(0.2))
+            .background(Color.black.opacity(0.22))
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    .stroke(store.searchQuery.isEmpty ? Color.white.opacity(0.1) : config.accentTheme.color.opacity(0.5), lineWidth: 1)
             )
             
             // Pause / Resume Toggle
@@ -112,12 +114,12 @@ public struct TabBarView: View {
             Button {
                 isSettingsPresented = true
             } label: {
-                Image(systemName: "gearshape")
+                Image(systemName: "gearshape.fill")
                     .font(.system(size: 13))
                     .foregroundColor(.secondary)
             }
             .buttonStyle(.plain)
-            .help("Preferences")
+            .help("Preferences (Themes, Shortcuts, Privacy)")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)

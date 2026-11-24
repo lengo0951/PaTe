@@ -7,6 +7,45 @@ public struct QuickLookView: View {
     let onPaste: (ClipboardItem, Bool) -> Void
     let onClose: () -> Void
     
+    @State private var localKeyMonitor: Any?
+    @State private var copyFeedback: Bool = false
+    
+    private func navigatePrevious() {
+        let items = store.filteredItems
+        guard !items.isEmpty else { return }
+        if let idx = items.firstIndex(where: { $0.id == item.id }) {
+            let prevIdx = idx > 0 ? idx - 1 : items.count - 1
+            store.activeQuickLookItem = items[prevIdx]
+            store.selectedItemID = items[prevIdx].id
+        }
+    }
+    
+    private func navigateNext() {
+        let items = store.filteredItems
+        guard !items.isEmpty else { return }
+        if let idx = items.firstIndex(where: { $0.id == item.id }) {
+            let nextIdx = idx < items.count - 1 ? idx + 1 : 0
+            store.activeQuickLookItem = items[nextIdx]
+            store.selectedItemID = items[nextIdx].id
+        }
+    }
+    
+    private func copyToClipboard() {
+        NSPasteboard.general.clearContents()
+        if let text = item.textValue {
+            NSPasteboard.general.setString(text, forType: .string)
+        }
+        SoundManager.shared.playCopy()
+        withAnimation(.easeInOut(duration: 0.2)) {
+            copyFeedback = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            withAnimation {
+                copyFeedback = false
+            }
+        }
+    }
+    
     public var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -19,7 +58,7 @@ public struct QuickLookView: View {
                 } else {
                     Image(systemName: item.contentType.iconName)
                         .font(.system(size: 16))
-                        .foregroundColor(.blue)
+                        .foregroundColor(AppConfig.shared.accentTheme.color)
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
@@ -32,6 +71,30 @@ public struct QuickLookView: View {
                 
                 Spacer()
                 
+                // Navigation Chevrons
+                HStack(spacing: 4) {
+                    Button(action: navigatePrevious) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 12, weight: .semibold))
+                            .frame(width: 24, height: 24)
+                            .background(Color.white.opacity(0.06))
+                            .cornerRadius(5)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Previous Clip (←)")
+                    
+                    Button(action: navigateNext) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .frame(width: 24, height: 24)
+                            .background(Color.white.opacity(0.06))
+                            .cornerRadius(5)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Next Clip (→)")
+                }
+                
+                // Close button
                 Button(action: onClose) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 18))
@@ -39,6 +102,7 @@ public struct QuickLookView: View {
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.cancelAction)
+                .help("Close Preview (Space or Esc)")
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
@@ -79,7 +143,7 @@ public struct QuickLookView: View {
                                     .frame(maxHeight: 320)
                                     .cornerRadius(8)
                                     .shadow(radius: 6)
-                                
+                                    
                                 if let w = item.imageWidth, let h = item.imageHeight {
                                     Text("Resolution: \(w) × \(h) px")
                                         .font(.system(size: 11))
@@ -129,7 +193,7 @@ public struct QuickLookView: View {
                             HStack(spacing: 10) {
                                 Image(systemName: "safari.fill")
                                     .font(.system(size: 28))
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(AppConfig.shared.accentTheme.color)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(item.displayTitle)
                                         .font(.system(size: 15, weight: .bold))
@@ -141,10 +205,10 @@ public struct QuickLookView: View {
                             
                             Text(item.textValue ?? "")
                                 .font(.system(size: 13, design: .monospaced))
-                                .foregroundColor(.blue)
+                                .foregroundColor(AppConfig.shared.accentTheme.color)
                                 .textSelection(.enabled)
                                 .padding(10)
-                                .background(Color.blue.opacity(0.1))
+                                .background(AppConfig.shared.accentTheme.color.opacity(0.1))
                                 .cornerRadius(8)
                             
                             if let urlStr = item.textValue, let url = URL(string: urlStr) {
@@ -152,6 +216,7 @@ public struct QuickLookView: View {
                                     NSWorkspace.shared.open(url)
                                 }
                                 .buttonStyle(.borderedProminent)
+                                .tint(AppConfig.shared.accentTheme.color)
                             }
                         }
                         
@@ -205,24 +270,24 @@ public struct QuickLookView: View {
                     onPaste(item, false)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(AppConfig.shared.accentTheme.color)
                 
                 Button("Paste Plain Text (⌥Return)") {
                     onPaste(item, true)
                 }
                 .buttonStyle(.bordered)
                 
-                Button("Copy to Clipboard") {
-                    NSPasteboard.general.clearContents()
-                    if let text = item.textValue {
-                        NSPasteboard.general.setString(text, forType: .string)
+                Button(action: copyToClipboard) {
+                    HStack(spacing: 4) {
+                        Image(systemName: copyFeedback ? "checkmark" : "doc.on.doc")
+                        Text(copyFeedback ? "Copied!" : "Copy (⌘C)")
                     }
-                    SoundManager.shared.playCopy()
                 }
                 .buttonStyle(.bordered)
                 
                 Spacer()
                 
-                Text("Press Space or Esc to close")
+                Text("Space / Esc to close • ← → browse")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
@@ -238,5 +303,54 @@ public struct QuickLookView: View {
                 .stroke(Color.white.opacity(0.15), lineWidth: 1)
         )
         .shadow(radius: 20)
+        .onAppear {
+            // Install local key monitor to capture Space, Esc, Arrows, Return, and Cmd+C
+            localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                // Spacebar = 49 (Toggle Quick Look close)
+                if event.keyCode == 49 {
+                    onClose()
+                    return nil
+                }
+                
+                // Escape = 53
+                if event.keyCode == 53 {
+                    onClose()
+                    return nil
+                }
+                
+                // Left Arrow = 123
+                if event.keyCode == 123 {
+                    navigatePrevious()
+                    return nil
+                }
+                
+                // Right Arrow = 124
+                if event.keyCode == 124 {
+                    navigateNext()
+                    return nil
+                }
+                
+                // Return = 36
+                if event.keyCode == 36 {
+                    let isPlainText = event.modifierFlags.contains(.option) || event.modifierFlags.contains(.shift)
+                    onPaste(item, isPlainText)
+                    return nil
+                }
+                
+                // Cmd + C = 8
+                if event.keyCode == 8 && event.modifierFlags.contains(.command) {
+                    copyToClipboard()
+                    return nil
+                }
+                
+                return event
+            }
+        }
+        .onDisappear {
+            if let monitor = localKeyMonitor {
+                NSEvent.removeMonitor(monitor)
+                localKeyMonitor = nil
+            }
+        }
     }
 }

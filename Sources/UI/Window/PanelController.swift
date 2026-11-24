@@ -13,13 +13,17 @@ public class PanelController: NSObject {
         super.init()
     }
     
+    private var currentPanelHeight: CGFloat {
+        return AppConfig.shared.showShortcutHints ? 318 : 290
+    }
+    
     public func setupPanel() {
         guard panel == nil else { return }
         
         let screen = NSScreen.main ?? NSScreen.screens[0]
         let screenFrame = screen.visibleFrame
         let panelWidth = min(screenFrame.width - 48, 1280)
-        let panelHeight: CGFloat = 290
+        let panelHeight = currentPanelHeight
         
         let initialRect = NSRect(
             x: screenFrame.midX - (panelWidth / 2),
@@ -53,27 +57,29 @@ public class PanelController: NSObject {
             let items = HistoryStore.shared.filteredItems
             let index = number - 1
             if index >= 0 && index < items.count {
-                self?.paste(item: items[index], asPlainText: false)
+                self?.paste(item: items[index], asPlainText: AppConfig.shared.pastePlainTextByDefault)
             }
         }
         
         newPanel.onReturnPressed = { [weak self] in
             let items = HistoryStore.shared.filteredItems
+            let defaultPlain = AppConfig.shared.pastePlainTextByDefault
             if let selectedID = HistoryStore.shared.selectedItemID,
                let item = items.first(where: { $0.id == selectedID }) {
-                self?.paste(item: item, asPlainText: false)
+                self?.paste(item: item, asPlainText: defaultPlain)
             } else if let first = items.first {
-                self?.paste(item: first, asPlainText: false)
+                self?.paste(item: first, asPlainText: defaultPlain)
             }
         }
         
-        newPanel.onReturnPressedWithOption = { [weak self] isPlainText in
+        newPanel.onReturnPressedWithOption = { [weak self] _ in
             let items = HistoryStore.shared.filteredItems
+            let asPlain = !AppConfig.shared.pastePlainTextByDefault
             if let selectedID = HistoryStore.shared.selectedItemID,
                let item = items.first(where: { $0.id == selectedID }) {
-                self?.paste(item: item, asPlainText: isPlainText)
+                self?.paste(item: item, asPlainText: asPlain)
             } else if let first = items.first {
-                self?.paste(item: first, asPlainText: isPlainText)
+                self?.paste(item: first, asPlainText: asPlain)
             }
         }
         
@@ -121,6 +127,26 @@ public class PanelController: NSObject {
             }
         }
         
+        newPanel.onPinPressed = {
+            if let currentID = HistoryStore.shared.selectedItemID {
+                let targetPinboard = HistoryStore.shared.selectedPinboardID != "history"
+                    ? HistoryStore.shared.selectedPinboardID
+                    : (HistoryStore.shared.pinboards.first(where: { !$0.isSystem })?.id ?? "pinned")
+                HistoryStore.shared.togglePin(itemID: currentID, pinboardID: targetPinboard)
+            }
+        }
+        
+        newPanel.onCopyPressed = {
+            if let currentID = HistoryStore.shared.selectedItemID,
+               let item = HistoryStore.shared.items.first(where: { $0.id == currentID }) {
+                NSPasteboard.general.clearContents()
+                if let text = item.textValue {
+                    NSPasteboard.general.setString(text, forType: .string)
+                }
+                SoundManager.shared.playCopy()
+            }
+        }
+        
         self.panel = newPanel
     }
     
@@ -150,7 +176,7 @@ public class PanelController: NSObject {
         let targetScreen = screens.first { NSMouseInRect(mouseLocation, $0.frame, false) } ?? NSScreen.main ?? screens[0]
         let screenFrame = targetScreen.visibleFrame
         let panelWidth = min(screenFrame.width - 48, 1280)
-        let panelHeight: CGFloat = 290
+        let panelHeight = currentPanelHeight
         
         let targetY = screenFrame.minY + 16
         let startY = screenFrame.minY - panelHeight
