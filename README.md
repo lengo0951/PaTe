@@ -4,17 +4,19 @@
 
 # PasteFlow
 
-**Next-Generation, Lightweight & Privacy-First Clipboard Manager for macOS**
+**Next-Generation, Lightweight & Privacy-First Clipboard Manager for macOS & Windows**
 
 [![Release](https://img.shields.io/github/v/release/lengo0951/PasteFlow?color=007AFF&style=flat-square)](https://github.com/lengo0951/PasteFlow/releases)
 [![macOS](https://img.shields.io/badge/macOS-13.0%2B-black?style=flat-square&logo=apple)](https://www.apple.com/macos/)
-[![Language](https://img.shields.io/badge/Swift-6.0-F05138?style=flat-square&logo=swift&logoColor=white)](https://swift.org)
-[![Memory](https://img.shields.io/badge/RAM-~33MB%20RSS-brightgreen?style=flat-square)](https://github.com/lengo0951/PasteFlow)
+[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=flat-square&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
+[![Swift](https://img.shields.io/badge/macOS-Swift%206-F05138?style=flat-square&logo=swift&logoColor=white)](https://swift.org)
+[![Rust](https://img.shields.io/badge/Windows-Rust%202024-DEA584?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![Memory](https://img.shields.io/badge/RAM-~20MB%20--%2033MB%20RSS-brightgreen?style=flat-square)](https://github.com/lengo0951/PasteFlow)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 *Crafted by [**Quốc Ngô**](https://github.com/lengo0951) (`@lengo0951` / `coolstar17`)*
 
-[Download DMG (v1.1.0)](https://github.com/lengo0951/PasteFlow/releases/latest) • [Key Features](#-key-features) • [Keyboard Shortcuts](#-keyboard-shortcuts) • [Build from Source](#-build-from-source)
+[Download for macOS (DMG)](https://github.com/lengo0951/PasteFlow/releases/latest) • [Download for Windows (Zip)](https://github.com/lengo0951/PasteFlow/releases/latest) • [Key Features](#-key-features) • [Build from Source](#-build-from-source)
 
 ---
 
@@ -22,9 +24,13 @@
 
 ## 📖 Overview
 
-**PasteFlow** is a native macOS clipboard manager engineered for developers, designers, and power users who value speed, minimalism, and elegance. 
+**PasteFlow** is a native, ultra-lightweight clipboard manager engineered for developers, designers, and power users across **macOS and Windows**.
 
-Unlike heavy Electron-based or webview-wrapped clipboard apps that easily consume 300MB – 1GB+ of memory, PasteFlow is built **100% natively in Swift 6, SwiftUI, and AppKit**. It runs in the background with near **0.0% CPU** and a microscopic **~33 MB resident memory (RSS)** footprint while providing fluid animations, frosted glass aesthetics, and instant preview capabilities.
+Unlike heavy Electron-based or webview-wrapped clipboard apps that easily consume 300MB – 1GB+ of memory, PasteFlow is built **100% natively**:
+* **macOS:** Pure **Swift 6, SwiftUI, and AppKit** with native `NSVisualEffectView` materials.
+* **Windows:** Pure **Rust 2024 and Win32 APIs (`windows-rs`)** with native Windows 11 **DWM Mica / Acrylic** blur.
+
+PasteFlow runs silently in the background with near **0.0% CPU** and a microscopic **~20 MB – 33 MB resident memory (RSS)** footprint while providing fluid animations, frosted glass aesthetics, and instant preview capabilities.
 
 ---
 
@@ -130,11 +136,22 @@ cd PasteFlow
 ```
 The compiled application bundle will be created at `build/PasteFlow.app`.
 
-### 2. Package into DMG
+### 2. Package into DMG (macOS)
 ```bash
 ./package_dmg.sh
 ```
 This produces a compressed `.dmg` disk image with an `/Applications` drag-and-drop symlink inside `build/`.
+
+### 3. Build Windows Edition (Rust)
+```bash
+cd windows
+
+# Run all 13 TDD unit & integration tests
+cargo test
+
+# Compile release binary for Windows (or cross-compile on macOS)
+cargo build --release --target x86_64-pc-windows-gnu
+```
 
 ---
 
