@@ -260,10 +260,10 @@ public struct RenameModalView: View {
     public var body: some View {
         VStack(spacing: 16) {
             HStack(spacing: 8) {
-                Image(systemName: "tag.fill")
+                Image(systemName: "pencil.line")
                     .font(.system(size: 16))
                     .foregroundColor(config.accentTheme.color)
-                Text(item.customTitle != nil ? "Edit Clip Name" : "Name this Clip")
+                Text(item.customTitle != nil ? "Edit Clip Title" : "Rename Clip")
                     .font(.system(size: 15, weight: .bold))
                 Spacer()
                 Button {

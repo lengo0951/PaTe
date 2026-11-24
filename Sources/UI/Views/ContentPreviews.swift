@@ -6,26 +6,10 @@ public struct TextContentView: View {
     
     public var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            if let customTitle = item.customTitle, !customTitle.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "tag.fill")
-                        .font(.system(size: 8))
-                    Text(customTitle)
-                        .font(.system(size: 11, weight: .bold))
-                        .lineLimit(1)
-                }
-                .foregroundColor(AppConfig.shared.accentTheme.color)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(AppConfig.shared.accentTheme.color.opacity(0.14))
-                .cornerRadius(4)
-                .padding(.bottom, 2)
-            }
-            
             Text(item.textValue ?? "")
                 .font(item.contentType == .code ? .system(.caption, design: .monospaced) : .system(size: 13, weight: .regular))
                 .foregroundColor(Color.primary.opacity(0.9))
-                .lineLimit(item.customTitle != nil ? 6 : 8)
+                .lineLimit(8)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }

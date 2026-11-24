@@ -31,9 +31,9 @@ public struct ItemCardView: View {
                         .foregroundColor(config.accentTheme.color)
                 }
                 
-                Text(item.appName ?? item.contentType.displayName)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.primary.opacity(0.85))
+                Text(item.customTitle ?? item.appName ?? item.contentType.displayName)
+                    .font(.system(size: 11, weight: item.customTitle != nil ? .bold : .medium))
+                    .foregroundColor(item.customTitle != nil ? config.accentTheme.color : .primary.opacity(0.85))
                     .lineLimit(1)
                 
                 Spacer()

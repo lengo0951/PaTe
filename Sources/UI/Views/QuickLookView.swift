@@ -62,25 +62,14 @@ public struct QuickLookView: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    if let title = item.customTitle, !title.isEmpty {
-                        HStack(spacing: 4) {
-                            Image(systemName: "tag.fill")
-                                .font(.system(size: 10))
-                                .foregroundColor(AppConfig.shared.accentTheme.color)
-                            Text(title)
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(AppConfig.shared.accentTheme.color)
-                        }
-                        Text("\(item.appName ?? item.contentType.displayName) • \(item.formattedRelativeTime)")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                    } else {
-                        Text(item.appName ?? item.contentType.displayName)
-                            .font(.system(size: 13, weight: .bold))
-                        Text("\(item.contentType.displayName) • \(item.formattedRelativeTime)")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                    }
+                    Text(item.customTitle ?? item.appName ?? item.contentType.displayName)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(item.customTitle != nil ? AppConfig.shared.accentTheme.color : .primary)
+                        .lineLimit(1)
+                    
+                    Text("\(item.appName ?? item.contentType.displayName) • \(item.formattedRelativeTime)")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
                 }
                 
                 Spacer()
