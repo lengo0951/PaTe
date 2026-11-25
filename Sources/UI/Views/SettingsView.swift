@@ -495,7 +495,7 @@ public struct SettingsView: View {
                 Spacer()
                 
                 Button("GitHub Repository") {
-                    if let url = URL(string: "https://github.com/lengo0951/PasteFlow") {
+                    if let url = URL(string: "https://github.com/lengo0951/PaTe") {
                         NSWorkspace.shared.open(url)
                     }
                 }

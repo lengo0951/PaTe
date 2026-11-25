@@ -37,7 +37,7 @@ Crafted by Quốc Ngô (@lengo0951)
 INSTALLATION:
 1. Drag PATE.app into the Applications folder.
 2. Recommended via Homebrew (clean open-source install):
-     brew tap lengo0951/tap https://github.com/lengo0951/PasteFlow
+     brew tap lengo0951/tap https://github.com/lengo0951/PaTe
      brew install --cask pate
 
 FIRST LAUNCH (Apple Gatekeeper for Open-Source Builds):

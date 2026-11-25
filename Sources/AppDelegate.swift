@@ -121,7 +121,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "GitHub")
         if alert.runModal() == .alertSecondButtonReturn {
-            if let url = URL(string: "https://github.com/lengo0951/PasteFlow") {
+            if let url = URL(string: "https://github.com/lengo0951/PaTe") {
                 NSWorkspace.shared.open(url)
             }
         }

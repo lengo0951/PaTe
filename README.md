@@ -1,22 +1,22 @@
 <div align="center">
 
-<img src="Assets/AppIcon.png" width="128" height="128" alt="PasteFlow Icon" />
+<img src="Assets/AppIcon.png" width="128" height="128" alt="PATE Icon" />
 
-# PasteFlow
+# PATE ⚡
 
-**Next-Generation, Lightweight & Privacy-First Clipboard Manager for macOS & Windows**
+**Ultra-Lightweight, Native Clipboard & Encrypted Account Manager for macOS & Windows**
 
-[![Release](https://img.shields.io/github/v/release/lengo0951/PasteFlow?color=007AFF&style=flat-square)](https://github.com/lengo0951/PasteFlow/releases)
+[![Release](https://img.shields.io/github/v/release/lengo0951/PaTe?color=FF375F&style=flat-square)](https://github.com/lengo0951/PaTe/releases)
 [![macOS](https://img.shields.io/badge/macOS-13.0%2B-black?style=flat-square&logo=apple)](https://www.apple.com/macos/)
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=flat-square&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![Swift](https://img.shields.io/badge/macOS-Swift%206-F05138?style=flat-square&logo=swift&logoColor=white)](https://swift.org)
 [![Rust](https://img.shields.io/badge/Windows-Rust%202024-DEA584?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org)
-[![Memory](https://img.shields.io/badge/RAM-~20MB%20--%2033MB%20RSS-brightgreen?style=flat-square)](https://github.com/lengo0951/PasteFlow)
+[![Memory](https://img.shields.io/badge/RAM-~20MB%20--%2035MB%20RSS-brightgreen?style=flat-square)](https://github.com/lengo0951/PaTe)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 *Crafted by [**Quốc Ngô**](https://github.com/lengo0951) (`@lengo0951` / `coolstar17`)*
 
-[Download for macOS (DMG)](https://github.com/lengo0951/PasteFlow/releases/latest) • [Download for Windows (Zip)](https://github.com/lengo0951/PasteFlow/releases/latest) • [Key Features](#-key-features) • [Build from Source](#-build-from-source)
+[Download for macOS (DMG)](https://github.com/lengo0951/PaTe/releases/latest) • [Download for Windows (Zip)](https://github.com/lengo0951/PaTe/releases/latest) • [Key Features](#-key-features) • [Build from Source](#-build-from-source)
 
 ---
 
@@ -24,87 +24,74 @@
 
 ## 📖 Overview
 
-**PasteFlow** is a native, ultra-lightweight clipboard manager engineered for developers, designers, and power users across **macOS and Windows**.
+**PATE** is a native, ultra-lightweight clipboard & encrypted credential manager engineered for developers, engineers, and power users across **macOS and Windows**.
 
-Unlike heavy Electron-based or webview-wrapped clipboard apps that easily consume 300MB – 1GB+ of memory, PasteFlow is built **100% natively**:
-* **macOS:** Pure **Swift 6, SwiftUI, and AppKit** with native `NSVisualEffectView` materials.
-* **Windows:** Pure **Rust 2024 and Win32 APIs (`windows-rs`)** with native Windows 11 **DWM Mica / Acrylic** blur.
+Unlike heavy Electron-based or WebView-wrapped tools that easily consume 300 MB – 1 GB+ of RAM, **PATE** is built **100% natively**:
+* **macOS:** Pure **Swift 6, SwiftUI, AppKit, and CryptoKit** with native `NSVisualEffectView` frosted glassmorphism.
+* **Windows:** Pure **Rust 2024 and Win32 APIs (`windows-rs`)** with native Windows 11 **DWM Acrylic / Mica** blur and Win32 DPAPI encryption.
 
-PasteFlow runs silently in the background with near **0.0% CPU** and a microscopic **~20 MB – 33 MB resident memory (RSS)** footprint while providing fluid animations, frosted glass aesthetics, and instant preview capabilities.
+PATE runs silently in your menu bar / system tray with **0.0% idle CPU** and a tiny **~20 MB – 35 MB RSS** memory footprint while delivering instant clipboard search, 1-shot login auto-fill, and Quick Look previews.
 
 ---
 
 ## 🌟 Key Features
 
-* 🎨 **Frosted Glassmorphism Floating Bar**:
-  * Slides gracefully up from the bottom of your screen using native `NSVisualEffectView` materials.
-  * Harmonizes naturally with macOS Sequoia and Sonoma, supporting both Light & Dark modes seamlessly.
-* ⚡ **Ultra-Low Memory Footprint (~33 MB RAM)**:
-  * Eliminates the uncompressed TIFF bitmap trap (which commonly inflates icon representations up to 98MB per clip).
-  * Employs an intelligent thumbnail cache (`AppIconCache`) downscaled to 32×32 with LRU eviction.
-  * Engineered from the ground up for minimal resource overhead, keeping your Mac fast and responsive.
-* 🔍 **Instant Quick Look (`Spacebar`)**:
-  * Tap **`Space`** on any highlighted card to trigger an expansive modal preview.
-  * Preview full-resolution images, multi-line code snippets with syntax awareness, color swatches with HEX/RGB/SwiftUI values, and file lists.
-* ⌨️ **Global Shortcut & Smart Pasting**:
-  * **`⌘ + ⇧ + V`** (`Cmd + Shift + V`): Toggle the PasteFlow HUD anywhere instantly.
-  * **`Return`**: Simulates `Cmd + V` directly into your active target application.
-  * **`⌥ + Return`** (`Option + Return`): **Paste as Plain Text** — automatically strips rich text, formatting, styles, and unwanted markup.
-  * **`1` .. `9`**: Instant single-key paste for the 9 most recent clipboard items.
+* 🔐 **Encrypted Account & Password Vault (`0ms` Unlock)**:
+  * **macOS:** Hardware-accelerated **AES-256-GCM (`CryptoKit`) + macOS Keychain** — passwords are masked (`••••••••••`) on cards and never stored in plaintext JSON.
+  * **Windows:** Native **Win32 DPAPI (`CryptProtectData`)** tied directly to your Windows user logon credentials.
+  * **1-Shot Smart Hybrid Auto-Fill (`Username ⇥ Tab ⇥ Password`)**: Double-click or press `Enter` on an Account card to inject `Username` via Unicode HID stream -> press `Tab` -> paste `Password` with zero browser clipboard race conditions!
+  * **2-Step Login Ready (`⌘U` / `Ctrl+U`)**: Types `Username` on Page 1 while pre-loading `Password` onto the clipboard so on Page 2 you simply press `⌘V` (`Ctrl+V`).
+  * **1-Click Clip Encryption**: Right-click any existing text clip to convert and encrypt it directly into your Accounts Vault.
+* 🎨 **Frosted Glassmorphism Floating HUD**:
+  * Slides smoothly from the bottom of your active screen using native `NSVisualEffectView` (macOS) and DWM Acrylic/Mica (Windows), seamlessly matching Light & Dark modes.
+* ⚡ **Ultra-Low Memory Footprint (~20 – 35 MB RAM)**:
+  * Direct PNG fast-path & `400px` `ImageIO` thumbnails (~85% lower RAM when scrolling image clips).
+  * `O(1)` checksum deduplication, memoized filter caching, zero-allocation RunLoop timers (`0.0%` idle CPU), and zero-allocation UTF-16 GDI `WM_PAINT` on Windows.
+* 🔍 **Instant Quick Look (`Spacebar`) & Custom Naming (`R`)**:
+  * Press `Space` to preview full-resolution images, code snippets, color swatches, links, files, or reveal Vault accounts.
+  * Press `R` to give any clip a memorable custom name displayed cleanly on the card header.
 * 🛡️ **Privacy-First & Self-Paste Protection**:
-  * Automatically detects and suppresses clips from password managers (**1Password**, **Bitwarden**, **KeePassXC**, **Keychain Access**).
-  * Prevents infinite clipboard feedback loops by tagging synthetic pastes with `org.nspasteboard.AutoGeneratedType`.
-  * Excludes user-defined blacklisted applications.
-* 🗂️ **Custom Pinboards**:
-  * Organize snippets, recurring code blocks, commands, and links into colored boards (Code, Links, Colors, Snippets).
-* 🚀 **Modern Launch at Login**:
-  * Native integration with Apple's `SMAppService` API (macOS 13+), requiring no deprecated helper apps or launch daemons.
+  * Automatically ignores clips from password managers (**1Password**, **Bitwarden**, **KeePassXC**, **Keychain Access**).
+  * 100% local storage with zero telemetry, zero analytics, and zero network calls.
+* 🗂️ **Custom Pinboards & Native Launch at Startup**:
+  * Organize snippets, accounts, commands, and links into color-coded tabs.
+  * Native `SMAppService` (macOS) and native System Tray Registry toggle (Windows — zero `.bat` scripts).
 
 ---
 
 ## 📊 Performance & Efficiency Benchmarks
 
-All benchmarks were measured directly on macOS (Apple Silicon M-Series, macOS Sequoia) using Apple's native diagnostic utilities (`footprint`, `vmmap`, `ps`) and empirical execution profiling.
+Measured on Apple Silicon (macOS) and Windows 11 x64 using native profiling tools (`footprint`, `ps`, Task Manager):
 
-### ⚡ Resource Utilization (Live Metrics)
-
-| Metric | PasteFlow (Native Swift 6) | Typical Electron / Webview App | Difference |
+| Metric | PATE (Native Swift 6 / Rust) | Typical Electron / WebView App | Difference |
 | :--- | :--- | :--- | :--- |
-| **Idle Memory (RSS)** | **~31 MB** | 250 MB – 550 MB | **~90% less RAM** |
-| **Active HUD Footprint** | **~45 MB** | 400 MB – 850 MB | **Up to 10× lighter** |
+| **Idle Memory (RSS)** | **~20 MB (Win) / ~35 MB (Mac)** | 250 MB – 550 MB | **~90% less RAM** |
 | **Background CPU** | **0.0%** | 0.8% – 2.5% | **Zero idle wakeups** |
 | **Cold Launch Time** | **< 35 ms** | 1,200 ms – 3,500 ms | **Instantaneous** |
-| **HUD Popup Latency** | **< 5 ms** | 120 ms – 280 ms | **Frame-perfect render** |
-| **DMG Download Size** | **1.57 MB** | 110 MB – 220 MB | **98% smaller payload** |
-| **Installed Bundle Size** | **2.22 MB** | 280 MB – 650 MB | **Microscopic disk usage** |
-
-### ⏱️ Latency & Throughput Profile (1,000 Clipboard Items)
-
-* **In-Memory Search / Filter (1,000 items):** `~4.2 ms` (Instant real-time fuzzy matching without UI hitching).
-* **JSON State Persistence (1,000 items, ~190 KB):** `~1.8 ms` write, `~1.4 ms` read.
-* **Hotkey Trigger (`⌘ + ⇧ + V` via Carbon API):** `< 5 ms` response time directly to display compositor.
+| **HUD Popup Latency** | **< 10 ms** | 120 ms – 280 ms | **Frame-perfect render** |
+| **Distribution Size** | **2.4 MB (DMG) / 261 KB (Win Zip)** | 110 MB – 220 MB | **98% smaller payload** |
 
 > [!TIP]
-> **Verify on your own Mac:** Run `footprint PasteFlow` or inspect `ps -o pid,rss,%cpu,command -ax | grep PasteFlow` to verify live resident memory consumption at any time.
+> **Verify on your own Mac:** Run `ps -o pid,rss,%cpu,command -ax | grep PATE` at any time to verify live memory and `0.0%` idle CPU usage.
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## ⌨️ Keyboard & Mouse Shortcuts
 
 | Shortcut | Action |
 | :--- | :--- |
-| **`⌘ + ⇧ + V`** / **`Ctrl + Shift + V`** | Toggle PasteFlow HUD from anywhere |
-| **`Return` / `Double-Click`** | Paste selected clip (or Vault Password) into active app |
-| **`⌘ + U`** / **`Ctrl + U`** | Paste Username (for Vault Account cards) |
-| **`⌘ + ⇧ + Return`** / **`Ctrl + Shift + Enter`** | Auto-Fill `Username ⇥ Password` sequentially |
+| **`⌘ + ⇧ + V`** / **`Ctrl + Shift + V`** | Toggle PATE HUD from anywhere |
+| **`Return` / `Double-Click`** | Paste clip — or **Smart Auto-Fill (`User ⇥ Tab ⇥ Pass`)** on Account cards |
+| **`⇧ + Return`** / **`Shift + Enter`** | **Auto-Fill & Submit Login (`User ⇥ Tab ⇥ Pass ⇥ Enter`)** on Account cards |
+| **`⌘ + U`** / **`Ctrl + U`** | Type **Username** & pre-load **Password** to clipboard (for 2-step web logins) |
+| **`⌥ + Return`** / **`Alt + Enter`** | **Paste as Plain Text** (or **Password Only** on Account cards) |
 | **`⌘ + N`** / **`Ctrl + N`** | Save new Account & Password into encrypted Vault |
-| **`⌥ + Return`** | **Paste as Plain Text** (strips all formatting) |
 | **`Space`** | Open / Close Quick Look preview modal |
 | **`R`** | Rename clip or Edit Vault Account |
-| **`1` – `9`** | Instant paste for card #1 through #9 |
-| **`←` / `→`** | Navigate between clipboard items |
-| **`Delete` / `Backspace`** | Delete selected card from history |
-| **`Esc`** | Clear search or dismiss PasteFlow panel |
+| **`1` – `9`** | Instant Quick Paste for card #1 through #9 |
+| **`←` / `→`** | Navigate between items |
+| **`Delete` / `Backspace`** | Delete selected card |
+| **`Esc`** | Clear search or dismiss PATE HUD |
 
 ---
 
@@ -112,19 +99,19 @@ All benchmarks were measured directly on macOS (Apple Silicon M-Series, macOS Se
 
 ### 🍎 macOS Option 1: Homebrew Tap (Recommended)
 ```bash
-brew tap lengo0951/tap https://github.com/lengo0951/PasteFlow
+brew tap lengo0951/tap https://github.com/lengo0951/PaTe
 brew install --cask pate
 ```
 
 ### 🍎 macOS Option 2: Download Pre-built DMG
-1. Download **[PATE-1.2.0.dmg](https://github.com/lengo0951/PasteFlow/releases/latest)**.
+1. Download **[PATE-1.2.0.dmg](https://github.com/lengo0951/PaTe/releases/latest)** (~2.4 MB).
 2. Open the disk image and drag **PATE.app** into your **Applications** folder.
 3. On first launch for open-source builds, Control-click **PATE.app** -> **Open** (or allow in *System Settings → Privacy & Security*), and grant **Accessibility** permission for `Cmd + V` synthesis.
 4. Press **`⌘ + ⇧ + V`** to activate!
 
 ### 🪟 Windows (10 / 11 x64)
-1. Download **[PATE-v1.2.0-windows.zip](https://github.com/lengo0951/PasteFlow/releases/latest)**.
-2. Extract and run `pate.exe` (single portable native executable, zero installer scripts).
+1. Download **[PATE-v1.2.0-windows.zip](https://github.com/lengo0951/PaTe/releases/latest)** (~261 KB).
+2. Extract and run `pate.exe` (single portable native executable with embedded PE Manifest & icon, zero installer scripts).
 3. Right-click the PATE System Tray icon to toggle **Launch at Windows Startup** or **Add Account / Password**.
 4. Press **`Ctrl + Shift + V`** to activate!
 
@@ -133,34 +120,31 @@ brew install --cask pate
 ## 🛠️ Build from Source
 
 ### Prerequisites
-* macOS 13.0 (Ventura) or newer.
-* Command Line Tools or Xcode (`swiftc` compiler with Swift 6 support).
+* **macOS:** macOS 13.0+ & Xcode Command Line Tools (`swiftc` with Swift 6).
+* **Windows:** Rust toolchain (`cargo`), `x86_64-pc-windows-msvc` (or `x86_64-pc-windows-gnu` cross-compile).
 
-### 1. Clone & Compile
+### 1. Clone & Build macOS (`PATE.app` + DMG)
 ```bash
-git clone https://github.com/lengo0951/PasteFlow.git
-cd PasteFlow
+git clone https://github.com/lengo0951/PaTe.git
+cd PaTe
 
-# Compile the standalone .app bundle
+# Compile & strictly sign PATE.app
 ./build.sh
-```
-The compiled application bundle will be created at `build/PasteFlow.app`.
 
-### 2. Package into DMG (macOS)
-```bash
+# Package PATE-1.2.0.dmg
 ./package_dmg.sh
 ```
-This produces a compressed `.dmg` disk image with an `/Applications` drag-and-drop symlink inside `build/`.
 
-### 3. Build Windows Edition (Rust)
+### 2. Test & Build Windows (`pate.exe` + Zip)
 ```bash
 cd windows
 
-# Run all 13 TDD unit & integration tests
+# Run all 16 unit & integration tests
 cargo test
 
-# Compile release binary for Windows (or cross-compile on macOS)
+# Build release binary (Windows native MSVC or macOS cross-compile)
 cargo build --release --target x86_64-pc-windows-gnu
+cd .. && ./package_windows.sh
 ```
 
 ---
@@ -168,53 +152,35 @@ cargo build --release --target x86_64-pc-windows-gnu
 ## 🏛️ Architecture
 
 ```
-PasteFlow/
-├── Sources/
-│   ├── AppDelegate.swift             # App lifecycle & status item
-│   ├── Main.swift                    # @main entry point
+PaTe/
+├── Sources/                          # macOS Edition (Swift 6 + SwiftUI + AppKit)
+│   ├── AppDelegate.swift             # App lifecycle, Edit MainMenu & status item
+│   ├── Main.swift                    # @main PATEApp entry point
 │   ├── Models/
-│   │   ├── ClipboardItem.swift       # Item representation & representations
-│   │   ├── ContentType.swift         # Text, Image, Color, File, URL types
-│   │   ├── HistoryStore.swift        # State persistence & LRU management
-│   │   └── Pinboard.swift            # Categorized pinboard tabs
+│   │   ├── AppConfig.swift           # Theme, hotkey & behavior configuration
+│   │   ├── ClipboardItem.swift       # Unified clip & credential model
+│   │   ├── ContentType.swift         # Text, Code, Link, Color, Image, File, Account
+│   │   ├── HistoryStore.swift        # O(1) dedup, ImageIO thumbnails & async save
+│   │   └── Pinboard.swift            # System History, Accounts Vault & custom tabs
 │   ├── Services/
-│   │   ├── AppIconCache.swift        # Lightweight downscaled icon caching
-│   │   ├── ClipboardMonitor.swift    # NSPasteboard changeCount polling
-│   │   ├── HotKeyManager.swift       # Carbon RegisterEventHotKey handler
-│   │   ├── PasteSimulator.swift      # CGEvent synthesis for Cmd+V
-│   │   └── SoundManager.swift        # Haptic & audio feedback
+│   │   ├── AppIconCache.swift        # Downscaled 32x32 LRU app icon cache
+│   │   ├── ClipboardMonitor.swift    # Zero-alloc RunLoop timer & PNG fast-path
+│   │   ├── CredentialVault.swift     # Hardware AES-256-GCM + macOS Keychain
+│   │   ├── HotKeyManager.swift       # Carbon global hotkey handler
+│   │   ├── PasteSimulator.swift      # Hybrid Unicode HID + Cmd+V & AXSecureTextField
+│   │   └── SoundManager.swift        # Subtle audio feedback
 │   └── UI/
-│       ├── Views/
-│       │   ├── CardCollectionView.swift
-│       │   ├── ContentPreviews.swift # Code, image, color rendering
-│       │   ├── ItemCardView.swift    # Individual clip card
-│       │   ├── MainContentView.swift # Root HUD SwiftUI container
-│       │   ├── QuickLookView.swift   # Full-screen Spacebar preview
-│       │   ├── SettingsView.swift    # Preferences panel
-│       │   └── TabBarView.swift      # Pinboards & History tabs
-│       └── Window/
-│           ├── FloatingPanel.swift   # Borderless non-activating NSPanel
-│           └── PanelController.swift # Animation & screen positioning
-├── Assets/                           # Retina AppIcon & sounds
-├── Info.plist                        # Bundle metadata & copyright
-├── build.sh                          # Swift compiler script
-└── package_dmg.sh                    # Disk image packaging pipeline
+│       ├── Views/                    # HUD, Card, Vault Modal, QuickLook, Settings
+│       └── Window/                   # FirstMouseHostingView, FloatingPanel, Controller
+├── windows/                          # Windows Edition (Rust 2024 + Win32)
+│   ├── assets/                       # pate.ico, pate.manifest (asInvoker), pate.rc
+│   ├── src/core/                     # types, storage, vault (DPAPI), simulator, hotkey
+│   └── src/ui/                       # Acrylic HUD, Zero-alloc WM_PAINT, Tray & Dialog
+├── Casks/pate.rb                     # Official Homebrew Cask formula
+├── Entitlements.plist                # Apple Silicon signing entitlements
+├── build.sh / package_dmg.sh / package_windows.sh
+└── .github/workflows/release.yml     # Dual macOS arm64 + Windows MSVC CI/CD
 ```
-
----
-
-## ⚡ Core Engineering Directives
-
-PasteFlow adheres to strict engineering rules:
-
-1. **Dual-Platform Parity (macOS & Windows)**:
-   - Any feature, bugfix, UI refinement, or schema update **MUST be implemented and tested for BOTH macOS and Windows** simultaneously.
-   - Dual-release packaging mandate: Every release cycle must publish both `PasteFlow-<version>.dmg` (macOS) and `PasteFlow-v<version>-windows.zip` (Windows).
-2. **Performance-First & Zero-Bloat Mandate (Top Priority)**:
-   - **Ultra-low Memory (RSS)**: Target `< 35 MB` on macOS (~30 MB typical) and `< 25 MB` on Windows (~20 MB typical). Zero uncompressed bitmap traps.
-   - **Near 0.0% Idle CPU**: Throttled polling on macOS, event-driven format listener on Windows.
-   - **Zero Webviews / Heavy Frameworks**: Absolute prohibition of Electron, WebView2, Chromium, Node.js, or CEF runtimes. 100% native compiled code only.
-   - **Sub-50ms Latency**: Instant HUD summoning and keyboard paste delivery.
 
 ---
 
