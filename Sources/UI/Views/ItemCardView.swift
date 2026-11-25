@@ -185,14 +185,21 @@ public struct ItemCardView: View {
         }
         .contextMenu {
             if item.contentType == .credential {
-                Button("Paste Password (Return / Double-Click)") {
+                Button("Paste Password to Active App (Return / Double-Click)") {
                     onPaste(item, true, .defaultSecret)
                 }
-                Button("Paste Username (⌘U)") {
+                Button("Paste Username to Active App (⌘U)") {
                     onPaste(item, true, .usernameOnly)
                 }
                 Button("Auto-Fill Login: User ⇥ Pass (⌘⇧Return)") {
                     onPaste(item, true, .autoFillTab)
+                }
+                Divider()
+                Button("Copy Password to Clipboard (⌘C)") {
+                    PasteSimulator.shared.copyCredentialToClipboard(item, usernameOnly: false)
+                }
+                Button("Copy Username to Clipboard (⌘⇧C)") {
+                    PasteSimulator.shared.copyCredentialToClipboard(item, usernameOnly: true)
                 }
                 Divider()
                 Button("Edit Account / Password... (R)") {

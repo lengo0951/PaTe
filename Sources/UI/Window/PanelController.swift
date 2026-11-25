@@ -14,7 +14,6 @@ public class PanelController: NSObject {
     
     private override init() {
         super.init()
-        // Ensure PasteSimulator starts observing active apps immediately
         _ = PasteSimulator.shared
     }
     
@@ -67,19 +66,57 @@ public class PanelController: NSObject {
         return items.first
     }
     
+    /// Checks if any text input (in panel or attached modal sheet) currently holds focus
+    private func isAnyTextInputFocused() -> Bool {
+        if let keyWin = NSApp.keyWindow, keyWin.firstResponder is NSText {
+            return true
+        }
+        if let p = self.panel, p.firstResponder is NSText {
+            return true
+        }
+        if let sheet = self.panel?.attachedSheet, sheet.firstResponder is NSText {
+            return true
+        }
+        return false
+    }
+    
     private func installKeyboardMonitor() {
         removeKeyboardMonitor()
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self, self.isVisible else { return event }
             let store = HistoryStore.shared
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            let isModalOpen = store.isAnyModalPresented || self.isSettingsSheetOpen || self.isAddPinboardSheetOpen
+            let isTextFocused = self.isAnyTextInputFocused()
             
-            // Let modal sheets handle their own keyboard shortcuts cleanly
-            if store.isAnyModalPresented || self.isSettingsSheetOpen || self.isAddPinboardSheetOpen {
-                return event
+            // 0. Guarantee ⌘V (Paste), ⌘C (Copy), ⌘X (Cut), ⌘A (Select All), ⌘Z (Undo)
+            // ALWAYS work inside any focused TextField or SecureField (including Add Account modal!)
+            if isTextFocused && flags == .command {
+                switch event.keyCode {
+                case 9: // Cmd + V (Paste into TextField/SecureField)
+                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                    return nil
+                case 8: // Cmd + C (Copy from TextField)
+                    NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
+                    return nil
+                case 7: // Cmd + X (Cut from TextField)
+                    NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)
+                    return nil
+                case 0: // Cmd + A (Select All in TextField)
+                    NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+                    return nil
+                case 6: // Cmd + Z (Undo in TextField)
+                    NSApp.sendAction(Selector(("undo:")), to: nil, from: nil)
+                    return nil
+                default:
+                    break
+                }
             }
             
-            let isTextFieldFocused = (self.panel?.firstResponder is NSTextView)
-            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            // Let modal sheets handle all other keys (typing, Tab, Return to Save, Esc to Cancel)
+            if isModalOpen {
+                return event
+            }
             
             // 1. Escape (53): Clear search first if active, otherwise close HUD
             if event.keyCode == 53 {
@@ -123,8 +160,8 @@ public class PanelController: NSObject {
                 return nil
             }
             
-            // 5. Left Arrow (123) & Right Arrow (124) -> Navigate cards unless editing middle of search query
-            if event.keyCode == 123 && (!isTextFieldFocused || store.searchQuery.isEmpty || flags.contains(.command)) {
+            // 5. Left Arrow (123) & Right Arrow (124) -> Navigate cards unless editing search query
+            if event.keyCode == 123 && (!isTextFocused || store.searchQuery.isEmpty || flags.contains(.command)) {
                 let items = store.filteredItems
                 if !items.isEmpty {
                     store.lastSelectionWasKeyboard = true
@@ -139,7 +176,7 @@ public class PanelController: NSObject {
                 return nil
             }
             
-            if event.keyCode == 124 && (!isTextFieldFocused || store.searchQuery.isEmpty || flags.contains(.command)) {
+            if event.keyCode == 124 && (!isTextFocused || store.searchQuery.isEmpty || flags.contains(.command)) {
                 let items = store.filteredItems
                 if !items.isEmpty {
                     store.lastSelectionWasKeyboard = true
@@ -155,7 +192,7 @@ public class PanelController: NSObject {
             }
             
             // 6. Spacebar (49) -> Quick Look when not typing in search
-            if event.keyCode == 49 && !isTextFieldFocused && store.searchQuery.isEmpty {
+            if event.keyCode == 49 && !isTextFocused && store.searchQuery.isEmpty {
                 if let item = self.selectedOrFirstItem() {
                     store.activeQuickLookItem = item
                 }
@@ -163,7 +200,7 @@ public class PanelController: NSObject {
             }
             
             // 7. Delete / Backspace (51) -> Delete selected clip when not typing in search
-            if event.keyCode == 51 && !isTextFieldFocused && store.searchQuery.isEmpty {
+            if event.keyCode == 51 && !isTextFocused && store.searchQuery.isEmpty {
                 if let currentID = store.selectedItemID {
                     store.removeItem(id: currentID)
                     store.selectedItemID = store.filteredItems.first?.id
@@ -172,7 +209,7 @@ public class PanelController: NSObject {
             }
             
             // 8. Cmd + P or 'P' (35) -> Pin
-            if event.keyCode == 35 && (flags.contains(.command) || (!isTextFieldFocused && store.searchQuery.isEmpty)) {
+            if event.keyCode == 35 && (flags.contains(.command) || (!isTextFocused && store.searchQuery.isEmpty)) {
                 if let currentID = store.selectedItemID {
                     let targetPinboard = (store.selectedPinboardID != "history" && store.selectedPinboardID != "vault")
                         ? store.selectedPinboardID
@@ -182,25 +219,27 @@ public class PanelController: NSObject {
                 return nil
             }
             
-            // 9. Cmd + C (8) -> Copy to clipboard without closing
-            if event.keyCode == 8 && flags.contains(.command) && !isTextFieldFocused {
+            // 9. Cmd + C (8) -> Copy selected clip or credential secret to clipboard
+            if event.keyCode == 8 && flags.contains(.command) && !isTextFocused {
                 if let item = self.selectedOrFirstItem() {
-                    NSPasteboard.general.clearContents()
                     if item.contentType == .credential {
-                        if let secret = CredentialVault.shared.getSecret(for: item.id) {
-                            NSPasteboard.general.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
-                            NSPasteboard.general.setString(secret, forType: .string)
+                        if flags.contains(.shift) {
+                            PasteSimulator.shared.copyCredentialToClipboard(item, usernameOnly: true)
+                        } else {
+                            PasteSimulator.shared.copyCredentialToClipboard(item, usernameOnly: false)
                         }
                     } else if let text = item.textValue {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.AutoGeneratedType"))
                         NSPasteboard.general.setString(text, forType: .string)
+                        SoundManager.shared.playCopy()
                     }
-                    SoundManager.shared.playCopy()
                 }
                 return nil
             }
             
             // 10. Cmd + R or 'R' (15) -> Rename / Edit Credential
-            if event.keyCode == 15 && (flags.contains(.command) || (!isTextFieldFocused && store.searchQuery.isEmpty)) {
+            if event.keyCode == 15 && (flags.contains(.command) || (!isTextFocused && store.searchQuery.isEmpty)) {
                 if let item = self.selectedOrFirstItem() {
                     NSApp.activate(ignoringOtherApps: true)
                     if item.contentType == .credential {
@@ -220,7 +259,7 @@ public class PanelController: NSObject {
                 let requiresCmd = AppConfig.shared.quickPasteWithCmd
                 let canFire = requiresCmd
                     ? flags.contains(.command)
-                    : (flags.contains(.command) || (!isTextFieldFocused && store.searchQuery.isEmpty))
+                    : (flags.contains(.command) || (!isTextFocused && store.searchQuery.isEmpty))
                 if canFire {
                     let items = store.filteredItems
                     let index = number - 1
@@ -250,13 +289,11 @@ public class PanelController: NSObject {
         setupPanel()
         guard let panel = panel else { return }
         
-        // Record external frontmost app only if it is not PasteFlow itself
         if let frontApp = NSWorkspace.shared.frontmostApplication,
            frontApp.bundleIdentifier != Bundle.main.bundleIdentifier {
             PasteSimulator.shared.lastFrontmostApplication = frontApp
         }
         
-        // Select first item by default
         HistoryStore.shared.lastSelectionWasKeyboard = false
         if let first = HistoryStore.shared.filteredItems.first {
             HistoryStore.shared.selectedItemID = first.id
@@ -281,7 +318,6 @@ public class PanelController: NSObject {
         panel.setFrame(rect, display: true)
         panel.alphaValue = 0.0
         
-        // True non-activating key panel: keeps target editor's cursor active while receiving input!
         panel.makeKeyAndOrderFront(nil)
         panel.makeFirstResponder(panel)
         

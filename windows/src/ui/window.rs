@@ -44,6 +44,8 @@ pub mod win32 {
     const IDC_PASS_EDIT: i32 = 2003;
     const IDC_SAVE_BTN: usize = 2004;
     const IDC_CANCEL_BTN: usize = 2005;
+    const IDC_PASTE_USER_BTN: usize = 2006;
+    const IDC_PASTE_PASS_BTN: usize = 2007;
 
     pub struct WindowState {
         pub store: HistoryStore,
@@ -251,19 +253,22 @@ pub mod win32 {
             let btn_cls: Vec<u16> = "BUTTON\0".encode_utf16().collect();
 
             let l1: Vec<u16> = "Account Name (e.g. dgcb sso prod):\0".encode_utf16().collect();
-            let l2: Vec<u16> = "Username / Email:\0".encode_utf16().collect();
-            let l3: Vec<u16> = "Password / Token:\0".encode_utf16().collect();
+            let l2: Vec<u16> = "Username / Email (Ctrl+V or click Paste):\0".encode_utf16().collect();
+            let l3: Vec<u16> = "Password / Token (Ctrl+V or click Paste):\0".encode_utf16().collect();
+            let b_paste: Vec<u16> = "Paste\0".encode_utf16().collect();
             let b_save: Vec<u16> = "Save to Vault\0".encode_utf16().collect();
             let b_cancel: Vec<u16> = "Cancel\0".encode_utf16().collect();
 
             let _ = CreateWindowExW(WINDOW_EX_STYLE(0), PCWSTR(static_cls.as_ptr()), PCWSTR(l1.as_ptr()), WS_CHILD | WS_VISIBLE, 18, 14, 330, 18, dlg_hwnd, None, instance, None);
-            let _ = CreateWindowExW(WS_EX_CLIENTEDGE, PCWSTR(edit_cls.as_ptr()), PCWSTR::null(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | WINDOW_STYLE(ES_AUTOHSCROLL as u32), 18, 34, 330, 24, dlg_hwnd, HMENU(IDC_TITLE_EDIT as *mut _), instance, None);
+            let h_title = CreateWindowExW(WS_EX_CLIENTEDGE, PCWSTR(edit_cls.as_ptr()), PCWSTR::null(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | WINDOW_STYLE(ES_AUTOHSCROLL as u32), 18, 34, 330, 24, dlg_hwnd, HMENU(IDC_TITLE_EDIT as *mut _), instance, None);
 
             let _ = CreateWindowExW(WINDOW_EX_STYLE(0), PCWSTR(static_cls.as_ptr()), PCWSTR(l2.as_ptr()), WS_CHILD | WS_VISIBLE, 18, 68, 330, 18, dlg_hwnd, None, instance, None);
-            let _ = CreateWindowExW(WS_EX_CLIENTEDGE, PCWSTR(edit_cls.as_ptr()), PCWSTR::null(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | WINDOW_STYLE(ES_AUTOHSCROLL as u32), 18, 88, 330, 24, dlg_hwnd, HMENU(IDC_USER_EDIT as *mut _), instance, None);
+            let _ = CreateWindowExW(WS_EX_CLIENTEDGE, PCWSTR(edit_cls.as_ptr()), PCWSTR::null(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | WINDOW_STYLE(ES_AUTOHSCROLL as u32), 18, 88, 265, 24, dlg_hwnd, HMENU(IDC_USER_EDIT as *mut _), instance, None);
+            let _ = CreateWindowExW(WINDOW_EX_STYLE(0), PCWSTR(btn_cls.as_ptr()), PCWSTR(b_paste.as_ptr()), WS_CHILD | WS_VISIBLE | WS_TABSTOP, 288, 88, 60, 24, dlg_hwnd, HMENU(IDC_PASTE_USER_BTN as *mut _), instance, None);
 
             let _ = CreateWindowExW(WINDOW_EX_STYLE(0), PCWSTR(static_cls.as_ptr()), PCWSTR(l3.as_ptr()), WS_CHILD | WS_VISIBLE, 18, 122, 330, 18, dlg_hwnd, None, instance, None);
-            let _ = CreateWindowExW(WS_EX_CLIENTEDGE, PCWSTR(edit_cls.as_ptr()), PCWSTR::null(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | WINDOW_STYLE((ES_AUTOHSCROLL | ES_PASSWORD) as u32), 18, 142, 330, 24, dlg_hwnd, HMENU(IDC_PASS_EDIT as *mut _), instance, None);
+            let _ = CreateWindowExW(WS_EX_CLIENTEDGE, PCWSTR(edit_cls.as_ptr()), PCWSTR::null(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | WINDOW_STYLE(ES_AUTOHSCROLL as u32), 18, 142, 265, 24, dlg_hwnd, HMENU(IDC_PASS_EDIT as *mut _), instance, None);
+            let _ = CreateWindowExW(WINDOW_EX_STYLE(0), PCWSTR(btn_cls.as_ptr()), PCWSTR(b_paste.as_ptr()), WS_CHILD | WS_VISIBLE | WS_TABSTOP, 288, 142, 60, 24, dlg_hwnd, HMENU(IDC_PASTE_PASS_BTN as *mut _), instance, None);
 
             let _ = CreateWindowExW(WINDOW_EX_STYLE(0), PCWSTR(btn_cls.as_ptr()), PCWSTR(b_cancel.as_ptr()), WS_CHILD | WS_VISIBLE | WS_TABSTOP, 158, 182, 85, 28, dlg_hwnd, HMENU(IDC_CANCEL_BTN as *mut _), instance, None);
             let _ = CreateWindowExW(WINDOW_EX_STYLE(0), PCWSTR(btn_cls.as_ptr()), PCWSTR(b_save.as_ptr()), WS_CHILD | WS_VISIBLE | WS_TABSTOP | WINDOW_STYLE(BS_DEFPUSHBUTTON as u32), 253, 182, 95, 28, dlg_hwnd, HMENU(IDC_SAVE_BTN as *mut _), instance, None);
@@ -272,6 +277,9 @@ pub mod win32 {
                 state_arc.lock().cred_dialog_hwnd = Some(dlg_hwnd);
             }
             let _ = SetForegroundWindow(dlg_hwnd);
+            if let Ok(ht) = h_title {
+                let _ = SetFocus(ht);
+            }
         }
     }
 
@@ -293,7 +301,13 @@ pub mod win32 {
         match msg {
             WM_COMMAND => {
                 let id = (wparam.0 & 0xFFFF) as usize;
-                if id == IDC_SAVE_BTN {
+                if id == IDC_PASTE_USER_BTN || id == IDC_PASTE_PASS_BTN {
+                    let target_ctrl_id = if id == IDC_PASTE_USER_BTN { IDC_USER_EDIT } else { IDC_PASS_EDIT };
+                    if let Ok(ctrl) = GetDlgItem(hwnd, target_ctrl_id) {
+                        let _ = SendMessageW(ctrl, WM_PASTE, WPARAM(0), LPARAM(0));
+                    }
+                    return LRESULT(0);
+                } else if id == IDC_SAVE_BTN {
                     let title = read_control_text(hwnd, IDC_TITLE_EDIT);
                     let user = read_control_text(hwnd, IDC_USER_EDIT);
                     let pass = read_control_text(hwnd, IDC_PASS_EDIT);
@@ -981,6 +995,12 @@ pub mod win32 {
 
             let mut msg = MSG::default();
             while GetMessageW(&mut msg, None, 0, 0).as_bool() {
+                let dlg_opt = GLOBAL_STATE.as_ref().and_then(|s| s.lock().cred_dialog_hwnd);
+                if let Some(dlg) = dlg_opt {
+                    if IsWindow(dlg).as_bool() && IsDialogMessageW(dlg, &msg).as_bool() {
+                        continue;
+                    }
+                }
                 let _ = TranslateMessage(&msg);
                 DispatchMessageW(&msg);
             }

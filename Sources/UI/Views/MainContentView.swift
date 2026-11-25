@@ -244,7 +244,8 @@ public struct CredentialModalView: View {
     @State private var username: String = ""
     @State private var password: String = ""
     @State private var url: String = ""
-    @State private var showPassword: Bool = false
+    // Default visible during input so Cmd+V & paste preview work without NSSecureTextField restriction
+    @State private var showPassword: Bool = true
     
     public init(mode: CredentialModalMode, store: HistoryStore) {
         self.mode = mode
@@ -258,7 +259,7 @@ public struct CredentialModalView: View {
         case .editExisting(let item):
             _title = State(initialValue: item.customTitle ?? "")
             _username = State(initialValue: item.credentialUsername ?? "")
-            _password = State(initialValue: CredentialVault.shared.getSecret(for: item.id) ?? "")
+            _password = State(initialValue: CredentialVault.shared.getSecret(for: item.id) ?? item.textValue ?? "")
             _url = State(initialValue: item.credentialURL ?? "")
         case .convertClip(let item):
             _title = State(initialValue: item.customTitle ?? "")
@@ -266,6 +267,14 @@ public struct CredentialModalView: View {
             _password = State(initialValue: item.textValue ?? "")
             _url = State(initialValue: "")
         }
+    }
+    
+    private var recentTextClips: [ClipboardItem] {
+        return Array(store.items.filter { $0.contentType != .credential && ($0.textValue?.isEmpty == false) }.prefix(5))
+    }
+    
+    private func readCurrentClipboard() -> String {
+        return NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
     
     private func dismissModal() {
@@ -293,7 +302,7 @@ public struct CredentialModalView: View {
     }
     
     public var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "lock.shield.fill")
                     .font(.system(size: 18))
@@ -307,7 +316,7 @@ public struct CredentialModalView: View {
                         }
                     }())
                     .font(.system(size: 15, weight: .bold))
-                    Text("Encrypted with AES-256-GCM & macOS Keychain")
+                    Text("Supports ⌘V Paste, 1-click Paste button, or picking from Recent Clips below")
                         .font(.system(size: 10.5))
                         .foregroundColor(.secondary)
                 }
@@ -321,30 +330,106 @@ public struct CredentialModalView: View {
             
             Divider()
             
+            // Quick-fill from Recent Clipboard History
+            if !recentTextClips.isEmpty {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("QUICK FILL FROM RECENT CLIPBOARD HISTORY:")
+                        .font(.system(size: 9.5, weight: .bold))
+                        .foregroundColor(.secondary)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(recentTextClips) { clip in
+                                let clipText = (clip.textValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                                Menu {
+                                    Button("Set as Username") {
+                                        username = clipText
+                                    }
+                                    Button("Set as Password") {
+                                        password = clipText
+                                    }
+                                    Button("Set as Account Name") {
+                                        title = clip.customTitle ?? String(clipText.prefix(40))
+                                    }
+                                    Button("Set as URL") {
+                                        url = clipText
+                                    }
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "doc.on.clipboard")
+                                            .font(.system(size: 9))
+                                        Text(clip.customTitle ?? String(clipText.prefix(22)))
+                                            .font(.system(size: 10.5, weight: .medium))
+                                            .lineLimit(1)
+                                    }
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3.5)
+                                    .background(Color.primary.opacity(0.07))
+                                    .cornerRadius(6)
+                                }
+                                .menuStyle(.borderlessButton)
+                                .fixedSize()
+                            }
+                        }
+                    }
+                }
+                .padding(8)
+                .background(Color.primary.opacity(0.04))
+                .cornerRadius(8)
+            }
+            
             VStack(alignment: .leading, spacing: 10) {
+                // Account Name
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Account Name / Service")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.secondary)
-                    TextField("e.g. dgcb sso prod, AWS Production, GitHub...", text: $title)
-                        .textFieldStyle(.roundedBorder)
+                    HStack(spacing: 6) {
+                        TextField("e.g. dgcb sso prod, AWS Production, GitHub...", text: $title)
+                            .textFieldStyle(.roundedBorder)
+                        Button {
+                            let clip = readCurrentClipboard()
+                            if !clip.isEmpty { title = clip }
+                        } label: {
+                            Label("Paste", systemImage: "doc.on.clipboard")
+                                .font(.system(size: 10.5))
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .help("Paste from current Clipboard")
+                    }
                 }
                 
+                // Username
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Username / Email")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.secondary)
-                    TextField("e.g. quoc.ngo@company.vn", text: $username)
-                        .textFieldStyle(.roundedBorder)
+                    HStack(spacing: 6) {
+                        TextField("e.g. quoc.ngo@company.vn (⌘V or click Paste)", text: $username)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 12.5, design: .monospaced))
+                        Button {
+                            let clip = readCurrentClipboard()
+                            if !clip.isEmpty { username = clip }
+                        } label: {
+                            Label("Paste", systemImage: "doc.on.clipboard")
+                                .font(.system(size: 10.5))
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .help("Paste Username from current Clipboard")
+                    }
                 }
                 
+                // Password
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Password / Secret Token")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.secondary)
                     HStack(spacing: 6) {
                         if showPassword {
-                            TextField("Password or token", text: $password)
+                            TextField("Password or token (⌘V or click Paste)", text: $password)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.system(size: 12.5, design: .monospaced))
                         } else {
@@ -355,19 +440,42 @@ public struct CredentialModalView: View {
                             showPassword.toggle()
                         } label: {
                             Image(systemName: showPassword ? "eye.slash" : "eye")
-                                .frame(width: 24, height: 22)
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
+                        .help(showPassword ? "Mask Password" : "Show Password")
+                        
+                        Button {
+                            let clip = readCurrentClipboard()
+                            if !clip.isEmpty { password = clip }
+                        } label: {
+                            Label("Paste", systemImage: "doc.on.clipboard")
+                                .font(.system(size: 10.5))
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .help("Paste Password from current Clipboard")
                     }
                 }
                 
+                // Website URL
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Website URL (Optional)")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.secondary)
-                    TextField("e.g. https://sso.cnsc.com.vn", text: $url)
-                        .textFieldStyle(.roundedBorder)
+                    HStack(spacing: 6) {
+                        TextField("e.g. https://sso.cnsc.com.vn", text: $url)
+                            .textFieldStyle(.roundedBorder)
+                        Button {
+                            let clip = readCurrentClipboard()
+                            if !clip.isEmpty { url = clip }
+                        } label: {
+                            Label("Paste", systemImage: "doc.on.clipboard")
+                                .font(.system(size: 10.5))
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
                 }
             }
             
@@ -385,7 +493,7 @@ public struct CredentialModalView: View {
             .padding(.top, 4)
         }
         .padding(22)
-        .frame(width: 400)
+        .frame(width: 460)
     }
 }
 

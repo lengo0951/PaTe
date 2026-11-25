@@ -24,47 +24,68 @@ public struct CredentialContentView: View {
     
     @State private var isRevealed: Bool = false
     @State private var revealedSecret: String = ""
+    @State private var copiedUserFeedback: Bool = false
+    @State private var copiedPassFeedback: Bool = false
     @ObservedObject private var config = AppConfig.shared
     
     public var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Username Row (Click to paste Username directly)
-            Button(action: onPasteUsername) {
-                HStack(spacing: 6) {
-                    Image(systemName: "person.crop.circle.fill")
-                        .font(.system(size: 13))
-                        .foregroundColor(config.accentTheme.color)
-                    
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("USERNAME")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundColor(.secondary)
-                        Text(item.credentialUsername?.isEmpty == false ? item.credentialUsername! : "—")
-                            .font(.system(size: 11.5, weight: .medium, design: .monospaced))
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+        VStack(alignment: .leading, spacing: 7) {
+            // Username Row (Does not swallow double-clicks on card background; dedicated Copy & Paste buttons on right)
+            HStack(spacing: 6) {
+                Image(systemName: "person.crop.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundColor(config.accentTheme.color)
+                
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("USERNAME")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.secondary)
+                    Text(item.credentialUsername?.isEmpty == false ? item.credentialUsername! : "—")
+                        .font(.system(size: 11.5, weight: .medium, design: .monospaced))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                
+                Spacer(minLength: 2)
+                
+                // Copy Username to Clipboard button
+                Button {
+                    PasteSimulator.shared.copyCredentialToClipboard(item, usernameOnly: true)
+                    copiedUserFeedback = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        copiedUserFeedback = false
                     }
-                    
-                    Spacer(minLength: 2)
-                    
+                } label: {
+                    Image(systemName: copiedUserFeedback ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .foregroundColor(copiedUserFeedback ? .green : .secondary)
+                        .frame(width: 20, height: 20)
+                        .background(Color.primary.opacity(0.08))
+                        .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
+                .help("Copy Username to Clipboard (⌘⇧C)")
+                
+                // Paste Username directly to active app
+                Button(action: onPasteUsername) {
                     Text("⌘U")
                         .font(.system(size: 8.5, weight: .bold, design: .rounded))
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .background(Color.primary.opacity(0.08))
-                        .cornerRadius(3)
+                        .foregroundColor(config.accentTheme.color)
+                        .padding(.horizontal, 4.5)
+                        .padding(.vertical, 2.5)
+                        .background(config.accentTheme.color.opacity(0.14))
+                        .cornerRadius(4)
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(Color.primary.opacity(0.05))
-                .cornerRadius(7)
+                .buttonStyle(.plain)
+                .help("Paste Username to Active App (⌘U)")
             }
-            .buttonStyle(.plain)
-            .help("Click or press ⌘U to paste Username")
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(Color.primary.opacity(0.05))
+            .cornerRadius(7)
             
-            // Password Row (Masked by default, Eye button to toggle reveal)
+            // Password Row (Masked by default, with Eye reveal, Copy to Clipboard, and Paste buttons)
             HStack(spacing: 6) {
                 Image(systemName: "key.fill")
                     .font(.system(size: 12))
@@ -82,7 +103,7 @@ public struct CredentialContentView: View {
                             .lineLimit(1)
                             .truncationMode(.tail)
                     } else {
-                        Text("••••••••••••")
+                        Text("••••••••••")
                             .font(.system(size: 12, weight: .bold, design: .monospaced))
                             .foregroundColor(.primary.opacity(0.85))
                             .lineLimit(1)
@@ -91,23 +112,54 @@ public struct CredentialContentView: View {
                 
                 Spacer(minLength: 2)
                 
+                // Eye Reveal / Hide
                 Button {
                     if !isRevealed {
-                        revealedSecret = CredentialVault.shared.getSecret(for: item.id) ?? ""
+                        revealedSecret = CredentialVault.shared.getSecret(for: item.id) ?? item.textValue ?? ""
                     } else {
                         revealedSecret = ""
                     }
                     isRevealed.toggle()
                 } label: {
                     Image(systemName: isRevealed ? "eye.slash.fill" : "eye.fill")
-                        .font(.system(size: 10.5))
+                        .font(.system(size: 9.5))
                         .foregroundColor(.secondary)
-                        .frame(width: 22, height: 22)
+                        .frame(width: 20, height: 20)
                         .background(Color.primary.opacity(0.07))
                         .cornerRadius(4)
                 }
                 .buttonStyle(.plain)
                 .help(isRevealed ? "Hide Password" : "Reveal Password")
+                
+                // Copy Password to Clipboard
+                Button {
+                    PasteSimulator.shared.copyCredentialToClipboard(item, usernameOnly: false)
+                    copiedPassFeedback = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        copiedPassFeedback = false
+                    }
+                } label: {
+                    Image(systemName: copiedPassFeedback ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .foregroundColor(copiedPassFeedback ? .green : .secondary)
+                        .frame(width: 20, height: 20)
+                        .background(Color.primary.opacity(0.07))
+                        .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
+                .help("Copy Password to Clipboard (⌘C)")
+                
+                // Paste Password directly to active app
+                Button(action: onPastePassword) {
+                    Text("⏎")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundColor(.orange)
+                        .frame(width: 20, height: 20)
+                        .background(Color.orange.opacity(0.16))
+                        .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
+                .help("Paste Password to Active App (Return / Double-Click)")
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
