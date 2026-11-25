@@ -4,11 +4,12 @@ public struct TabBarView: View {
     @ObservedObject var store: HistoryStore
     @Binding var isAddingPinboard: Bool
     @Binding var isSettingsPresented: Bool
+    var onSubmitSearch: (() -> Void)? = nil
     
     @ObservedObject private var config = AppConfig.shared
     
     public var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             // Pinboards Tab List
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -16,12 +17,19 @@ public struct TabBarView: View {
                         Button {
                             withAnimation(.easeInOut(duration: 0.15)) {
                                 store.selectedPinboardID = pinboard.id
+                                store.selectedItemID = store.filteredItems.first?.id
                             }
                         } label: {
                             HStack(spacing: 6) {
-                                Circle()
-                                    .fill(Color(hexString: pinboard.colorHex))
-                                    .frame(width: 8, height: 8)
+                                if pinboard.id == "vault" {
+                                    Image(systemName: "lock.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(Color(hexString: pinboard.colorHex))
+                                } else {
+                                    Circle()
+                                        .fill(Color(hexString: pinboard.colorHex))
+                                        .frame(width: 8, height: 8)
+                                }
                                 
                                 Text(pinboard.name)
                                     .font(.system(size: 12, weight: store.selectedPinboardID == pinboard.id ? .semibold : .regular))
@@ -51,6 +59,7 @@ public struct TabBarView: View {
                     
                     // Add Pinboard Button
                     Button {
+                        NSApp.activate(ignoringOtherApps: true)
                         isAddingPinboard = true
                     } label: {
                         Image(systemName: "plus")
@@ -68,16 +77,46 @@ public struct TabBarView: View {
             
             Spacer()
             
+            // Quick "+ Account" Vault Button
+            Button {
+                NSApp.activate(ignoringOtherApps: true)
+                store.isCredentialModalPresented = true
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "key.fill")
+                        .font(.system(size: 10))
+                    Text("+ Account")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundColor(Color(hexString: "#FF375F"))
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(Color(hexString: "#FF375F").opacity(0.14))
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(hexString: "#FF375F").opacity(0.35), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .help("Save New Account & Password (⌘N)")
+            
             // Search Input Field
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 11))
                     .foregroundColor(store.searchQuery.isEmpty ? .secondary : config.accentTheme.color)
                 
-                TextField("Search history... (⌘F)", text: $store.searchQuery)
+                TextField("Search history...", text: $store.searchQuery)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
-                    .frame(width: 150)
+                    .frame(width: 145)
+                    .onSubmit {
+                        onSubmitSearch?()
+                    }
+                    .onChange(of: store.searchQuery) { _ in
+                        store.selectedItemID = store.filteredItems.first?.id
+                    }
                 
                 if !store.searchQuery.isEmpty {
                     Button {
@@ -112,6 +151,7 @@ public struct TabBarView: View {
             
             // Settings Button
             Button {
+                NSApp.activate(ignoringOtherApps: true)
                 isSettingsPresented = true
             } label: {
                 Image(systemName: "gearshape.fill")

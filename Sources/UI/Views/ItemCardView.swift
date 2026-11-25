@@ -6,21 +6,25 @@ public struct ItemCardView: View {
     let index: Int
     let isSelected: Bool
     @ObservedObject var store: HistoryStore
-    let onPaste: (ClipboardItem, Bool) -> Void
+    let onPaste: (ClipboardItem, Bool, CredentialPasteMode) -> Void
     let onSelect: (ClipboardItem) -> Void
     
     @ObservedObject private var config = AppConfig.shared
     @State private var isHovered: Bool = false
+    @State private var lastClickUptime: TimeInterval = 0
     
     private var appIcon: NSImage? {
+        if item.contentType == .credential { return nil }
         return AppIconCache.shared.icon(for: item.appBundleID)
     }
     
     private var footerSubtitle: String {
         let time = item.formattedRelativeTime
         switch item.contentType {
+        case .credential:
+            return "🔒 Vault • \(time)"
         case .text:
-            return "\(item.characterCount) characters • \(time)"
+            return "\(item.characterCount) chars • \(time)"
         case .code:
             return "\(item.characterCount) chars • \(time)"
         case .image:
@@ -41,7 +45,11 @@ public struct ItemCardView: View {
         VStack(spacing: 0) {
             // MARK: - Card Header
             HStack(spacing: 6) {
-                if let icon = appIcon {
+                if item.contentType == .credential {
+                    Image(systemName: "lock.shield.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hexString: "#FF375F"))
+                } else if let icon = appIcon {
                     Image(nsImage: icon)
                         .resizable()
                         .frame(width: 16, height: 16)
@@ -53,20 +61,24 @@ public struct ItemCardView: View {
                 }
                 
                 Text(item.customTitle ?? item.appName ?? item.contentType.displayName)
-                    .font(.system(size: 11, weight: item.customTitle != nil ? .bold : .medium))
-                    .foregroundColor(item.customTitle != nil ? config.accentTheme.color : .primary.opacity(0.85))
+                    .font(.system(size: 11, weight: (item.customTitle != nil || item.contentType == .credential) ? .bold : .medium))
+                    .foregroundColor(
+                        item.contentType == .credential
+                            ? Color(hexString: "#FF375F")
+                            : (item.customTitle != nil ? config.accentTheme.color : .primary.opacity(0.85))
+                    )
                     .lineLimit(1)
                     .truncationMode(.tail)
                 
                 Spacer(minLength: 4)
                 
                 if item.isPinned {
-                    Image(systemName: "pin.fill")
+                    Image(systemName: item.contentType == .credential ? "key.fill" : "pin.fill")
                         .font(.system(size: 9))
-                        .foregroundColor(.orange)
+                        .foregroundColor(item.contentType == .credential ? Color(hexString: "#FF375F") : .orange)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 2)
-                        .background(Color.orange.opacity(0.12))
+                        .background((item.contentType == .credential ? Color(hexString: "#FF375F") : Color.orange).opacity(0.12))
                         .cornerRadius(3)
                 }
             }
@@ -80,6 +92,16 @@ public struct ItemCardView: View {
             // MARK: - Card Body
             Group {
                 switch item.contentType {
+                case .credential:
+                    CredentialContentView(
+                        item: item,
+                        onPasteUsername: {
+                            onPaste(item, true, .usernameOnly)
+                        },
+                        onPastePassword: {
+                            onPaste(item, true, .defaultSecret)
+                        }
+                    )
                 case .text, .code:
                     TextContentView(item: item)
                 case .image:
@@ -107,7 +129,6 @@ public struct ItemCardView: View {
                 
                 Spacer()
                 
-                // Shortcut Badge (1..9)
                 if index < 9 {
                     Text("\(index + 1)")
                         .font(.system(size: 10, weight: .bold, design: .rounded))
@@ -142,69 +163,100 @@ public struct ItemCardView: View {
             x: 0,
             y: 2
         )
-        .scaleEffect(isHovered ? 1.015 : 1.0)
-        .animation(.easeInOut(duration: 0.15), value: isHovered)
+        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .scaleEffect(isHovered ? 1.012 : 1.0)
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
         .animation(.easeOut(duration: 0.08), value: isSelected)
         .onHover { hovering in
             isHovered = hovering
         }
-        .gesture(
-            TapGesture(count: 2)
-                .onEnded {
-                    onPaste(item, config.pastePlainTextByDefault)
-                }
-        )
-        .simultaneousGesture(
-            TapGesture(count: 1)
-                .onEnded {
-                    onSelect(item)
-                }
-        )
+        // Deterministic, zero-lag monotonic click / double-click handler
+        .onTapGesture {
+            let now = ProcessInfo.processInfo.systemUptime
+            let threshold = max(NSEvent.doubleClickInterval, 0.32)
+            if now - lastClickUptime <= threshold {
+                lastClickUptime = 0
+                onPaste(item, config.pastePlainTextByDefault, .defaultSecret)
+            } else {
+                lastClickUptime = now
+                store.lastSelectionWasKeyboard = false
+                onSelect(item)
+            }
+        }
         .contextMenu {
-            Button("Paste to Active App (Return)") {
-                onPaste(item, false)
-            }
-            Button("Paste as Plain Text (⌥Return)") {
-                onPaste(item, true)
-            }
-            Button("Quick Look Preview (Space)") {
-                store.activeQuickLookItem = item
-            }
-            Button("Copy to Clipboard (⌘C)") {
-                NSPasteboard.general.clearContents()
-                if let text = item.textValue {
-                    NSPasteboard.general.setString(text, forType: .string)
+            if item.contentType == .credential {
+                Button("Paste Password (Return / Double-Click)") {
+                    onPaste(item, true, .defaultSecret)
                 }
-                SoundManager.shared.playCopy()
-            }
-            
-            Button("Rename Clip... (R)") {
-                store.itemBeingRenamed = item
-            }
-            
-            Divider()
-            
-            Menu("Pin to Pinboard") {
-                ForEach(store.pinboards.filter { !$0.isSystem }) { pinboard in
-                    Button {
-                        store.togglePin(itemID: item.id, pinboardID: pinboard.id)
-                    } label: {
-                        HStack {
-                            Text(pinboard.name)
-                            if item.pinboardIDs.contains(pinboard.id) {
-                                Image(systemName: "checkmark")
-                            }
-                        }
+                Button("Paste Username (⌘U)") {
+                    onPaste(item, true, .usernameOnly)
+                }
+                Button("Auto-Fill Login: User ⇥ Pass (⌘⇧Return)") {
+                    onPaste(item, true, .autoFillTab)
+                }
+                Divider()
+                Button("Edit Account / Password... (R)") {
+                    NSApp.activate(ignoringOtherApps: true)
+                    store.credentialItemBeingEdited = item
+                }
+            } else {
+                Button("Paste to Active App (Return / Double-Click)") {
+                    onPaste(item, false, .defaultSecret)
+                }
+                Button("Paste as Plain Text (⌥Return)") {
+                    onPaste(item, true, .defaultSecret)
+                }
+                Button("Quick Look Preview (Space)") {
+                    store.activeQuickLookItem = item
+                }
+                Button("Copy to Clipboard (⌘C)") {
+                    NSPasteboard.general.clearContents()
+                    if let text = item.textValue {
+                        NSPasteboard.general.setString(text, forType: .string)
+                    }
+                    SoundManager.shared.playCopy()
+                }
+                
+                Divider()
+                
+                Button(item.customTitle != nil ? "Edit Clip Name (R)" : "Rename Clip (R)") {
+                    NSApp.activate(ignoringOtherApps: true)
+                    store.itemBeingRenamed = item
+                }
+                
+                if item.textValue != nil {
+                    Button("🔒 Save as Account / Password...") {
+                        NSApp.activate(ignoringOtherApps: true)
+                        store.itemConvertingToCredential = item
                     }
                 }
             }
             
             Divider()
             
+            let customPinboards = store.pinboards.filter { !$0.isSystem }
+            if !customPinboards.isEmpty {
+                Menu("Pin to Pinboard") {
+                    ForEach(customPinboards) { pb in
+                        Button {
+                            store.togglePin(itemID: item.id, pinboardID: pb.id)
+                        } label: {
+                            HStack {
+                                Text(pb.name)
+                                if item.pinboardIDs.contains(pb.id) {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                }
+                Divider()
+            }
+            
             Button(role: .destructive) {
                 store.removeItem(id: item.id)
             } label: {
-                Label("Delete Item (⌫)", systemImage: "trash")
+                Text("Delete")
             }
         }
     }

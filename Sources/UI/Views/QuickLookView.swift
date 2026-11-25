@@ -4,11 +4,12 @@ import AppKit
 public struct QuickLookView: View {
     let item: ClipboardItem
     @ObservedObject var store: HistoryStore
-    let onPaste: (ClipboardItem, Bool) -> Void
+    let onPaste: (ClipboardItem, Bool, CredentialPasteMode) -> Void
     let onClose: () -> Void
     
     @State private var localKeyMonitor: Any?
     @State private var copyFeedback: Bool = false
+    @State private var revealSecret: Bool = false
     
     private func navigatePrevious() {
         let items = store.filteredItems
@@ -32,7 +33,12 @@ public struct QuickLookView: View {
     
     private func copyToClipboard() {
         NSPasteboard.general.clearContents()
-        if let text = item.textValue {
+        if item.contentType == .credential {
+            if let secret = CredentialVault.shared.getSecret(for: item.id) {
+                NSPasteboard.general.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+                NSPasteboard.general.setString(secret, forType: .string)
+            }
+        } else if let text = item.textValue {
             NSPasteboard.general.setString(text, forType: .string)
         }
         SoundManager.shared.playCopy()
@@ -50,7 +56,11 @@ public struct QuickLookView: View {
         VStack(spacing: 0) {
             // Header
             HStack(spacing: 10) {
-                if let icon = AppIconCache.shared.icon(for: item.appBundleID) {
+                if item.contentType == .credential {
+                    Image(systemName: "lock.shield.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(Color(hexString: "#FF375F"))
+                } else if let icon = AppIconCache.shared.icon(for: item.appBundleID) {
                     Image(nsImage: icon)
                         .resizable()
                         .frame(width: 22, height: 22)
@@ -74,13 +84,16 @@ public struct QuickLookView: View {
                 
                 Spacer()
                 
-                // Rename button
                 Button {
-                    store.itemBeingRenamed = item
+                    if item.contentType == .credential {
+                        store.credentialItemBeingEdited = item
+                    } else {
+                        store.itemBeingRenamed = item
+                    }
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "pencil")
-                        Text(item.customTitle != nil ? "Edit Name" : "Name")
+                        Text(item.contentType == .credential ? "Edit" : (item.customTitle != nil ? "Edit Name" : "Name"))
                     }
                     .font(.system(size: 11, weight: .medium))
                     .padding(.horizontal, 8)
@@ -89,9 +102,7 @@ public struct QuickLookView: View {
                     .cornerRadius(5)
                 }
                 .buttonStyle(.plain)
-                .help("Rename this clip (R)")
                 
-                // Navigation Chevrons
                 HStack(spacing: 4) {
                     Button(action: navigatePrevious) {
                         Image(systemName: "chevron.left")
@@ -101,7 +112,6 @@ public struct QuickLookView: View {
                             .cornerRadius(5)
                     }
                     .buttonStyle(.plain)
-                    .help("Previous Clip (←)")
                     
                     Button(action: navigateNext) {
                         Image(systemName: "chevron.right")
@@ -111,10 +121,8 @@ public struct QuickLookView: View {
                             .cornerRadius(5)
                     }
                     .buttonStyle(.plain)
-                    .help("Next Clip (→)")
                 }
                 
-                // Close button
                 Button(action: onClose) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 18))
@@ -122,7 +130,6 @@ public struct QuickLookView: View {
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.cancelAction)
-                .help("Close Preview (Space or Esc)")
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
@@ -135,6 +142,53 @@ public struct QuickLookView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     switch item.contentType {
+                    case .credential:
+                        let secret = CredentialVault.shared.getSecret(for: item.id) ?? ""
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("USERNAME")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(.secondary)
+                                    Text(item.credentialUsername ?? "—")
+                                        .font(.system(size: 14, design: .monospaced))
+                                        .textSelection(.enabled)
+                                }
+                                Spacer()
+                                Button("Paste Username (⌘U)") {
+                                    onPaste(item, true, .usernameOnly)
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                            .padding(12)
+                            .background(Color.black.opacity(0.2))
+                            .cornerRadius(8)
+                            
+                            HStack {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("PASSWORD / SECRET")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(.secondary)
+                                    Text(revealSecret ? secret : "••••••••••••••••")
+                                        .font(.system(size: 14, design: .monospaced))
+                                }
+                                Spacer()
+                                Button(revealSecret ? "Hide" : "Reveal") {
+                                    revealSecret.toggle()
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                            .padding(12)
+                            .background(Color.black.opacity(0.2))
+                            .cornerRadius(8)
+                            
+                            if let urlStr = item.credentialURL, !urlStr.isEmpty {
+                                Text("URL: \(urlStr)")
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
                     case .text, .code:
                         VStack(alignment: .leading, spacing: 8) {
                             Text(item.textValue ?? "")
@@ -188,41 +242,12 @@ public struct QuickLookView: View {
                             
                             Text(colorHex.uppercased())
                                 .font(.system(size: 20, weight: .bold, design: .monospaced))
-                            
-                            HStack(spacing: 10) {
-                                Button("Copy HEX") {
-                                    NSPasteboard.general.clearContents()
-                                    NSPasteboard.general.setString(colorHex, forType: .string)
-                                    SoundManager.shared.playCopy()
-                                }
-                                .buttonStyle(.bordered)
-                                
-                                Button("Copy SwiftUI Color") {
-                                    NSPasteboard.general.clearContents()
-                                    NSPasteboard.general.setString("Color(hex: \"\(colorHex)\")", forType: .string)
-                                    SoundManager.shared.playCopy()
-                                }
-                                .buttonStyle(.bordered)
-                            }
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 20)
                         
                     case .link:
                         VStack(alignment: .leading, spacing: 14) {
-                            HStack(spacing: 10) {
-                                Image(systemName: "safari.fill")
-                                    .font(.system(size: 28))
-                                    .foregroundColor(AppConfig.shared.accentTheme.color)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.displayTitle)
-                                        .font(.system(size: 15, weight: .bold))
-                                    Text("Web Link")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            
                             Text(item.textValue ?? "")
                                 .font(.system(size: 13, design: .monospaced))
                                 .foregroundColor(AppConfig.shared.accentTheme.color)
@@ -242,27 +267,15 @@ public struct QuickLookView: View {
                         
                     case .file:
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Files (\(item.filePaths?.count ?? 0)):")
-                                .font(.system(size: 13, weight: .semibold))
-                            
                             if let paths = item.filePaths {
                                 ForEach(paths, id: \.self) { path in
                                     HStack(spacing: 8) {
                                         Image(nsImage: NSWorkspace.shared.icon(forFile: path))
                                             .resizable()
                                             .frame(width: 24, height: 24)
-                                        
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(URL(fileURLWithPath: path).lastPathComponent)
-                                                .font(.system(size: 12, weight: .medium))
-                                            Text(path)
-                                                .font(.system(size: 10))
-                                                .foregroundColor(.secondary)
-                                                .lineLimit(1)
-                                        }
-                                        
+                                        Text(URL(fileURLWithPath: path).lastPathComponent)
+                                            .font(.system(size: 12, weight: .medium))
                                         Spacer()
-                                        
                                         Button("Reveal") {
                                             NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
                                         }
@@ -286,16 +299,29 @@ public struct QuickLookView: View {
             
             // Footer Actions
             HStack(spacing: 12) {
-                Button("Paste (Return)") {
-                    onPaste(item, false)
+                if item.contentType == .credential {
+                    Button("Paste Password (⏎)") {
+                        onPaste(item, true, .defaultSecret)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color(hexString: "#FF375F"))
+                    
+                    Button("Auto-Fill User ⇥ Pass") {
+                        onPaste(item, true, .autoFillTab)
+                    }
+                    .buttonStyle(.bordered)
+                } else {
+                    Button("Paste (Return)") {
+                        onPaste(item, false, .defaultSecret)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(AppConfig.shared.accentTheme.color)
+                    
+                    Button("Paste Plain Text (⌥Return)") {
+                        onPaste(item, true, .defaultSecret)
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(AppConfig.shared.accentTheme.color)
-                
-                Button("Paste Plain Text (⌥Return)") {
-                    onPaste(item, true)
-                }
-                .buttonStyle(.bordered)
                 
                 Button(action: copyToClipboard) {
                     HStack(spacing: 4) {
@@ -307,7 +333,7 @@ public struct QuickLookView: View {
                 
                 Spacer()
                 
-                Text("Space / Esc to close • ← → browse")
+                Text("Space / Esc to close")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
@@ -324,51 +350,32 @@ public struct QuickLookView: View {
         )
         .shadow(radius: 20)
         .onAppear {
-            // Install local key monitor to capture Space, Esc, Arrows, Return, and Cmd+C
             localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                // Spacebar = 49 (Toggle Quick Look close)
-                if event.keyCode == 49 {
+                if event.keyCode == 49 || event.keyCode == 53 {
                     onClose()
                     return nil
                 }
-                
-                // Escape = 53
-                if event.keyCode == 53 {
-                    onClose()
-                    return nil
-                }
-                
-                // Left Arrow = 123
                 if event.keyCode == 123 {
                     navigatePrevious()
                     return nil
                 }
-                
-                // Right Arrow = 124
                 if event.keyCode == 124 {
                     navigateNext()
                     return nil
                 }
-                
-                // Return = 36
-                if event.keyCode == 36 {
+                if event.keyCode == 36 || event.keyCode == 76 {
                     let isPlainText = event.modifierFlags.contains(.option) || event.modifierFlags.contains(.shift)
-                    onPaste(item, isPlainText)
+                    onPaste(item, isPlainText, .defaultSecret)
                     return nil
                 }
-                
-                // Cmd + C = 8
+                if event.keyCode == 32 && event.modifierFlags.contains(.command) && item.contentType == .credential {
+                    onPaste(item, true, .usernameOnly)
+                    return nil
+                }
                 if event.keyCode == 8 && event.modifierFlags.contains(.command) {
                     copyToClipboard()
                     return nil
                 }
-                
-                // R = 15 (Rename)
-                if event.keyCode == 15 {
-                    store.itemBeingRenamed = item
-                    return nil
-                }
-                
                 return event
             }
         }

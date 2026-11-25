@@ -2,7 +2,7 @@ import SwiftUI
 
 public struct CardCollectionView: View {
     @ObservedObject var store: HistoryStore
-    let onPaste: (ClipboardItem, Bool) -> Void
+    let onPaste: (ClipboardItem, Bool, CredentialPasteMode) -> Void
     
     public var body: some View {
         let items = store.filteredItems
@@ -10,17 +10,33 @@ public struct CardCollectionView: View {
         if items.isEmpty {
             VStack(spacing: 12) {
                 Spacer()
-                Image(systemName: "clipboard")
+                Image(systemName: store.selectedPinboardID == "vault" ? "lock.shield" : "clipboard")
                     .font(.system(size: 36))
                     .foregroundColor(.secondary.opacity(0.6))
                 
-                Text(store.searchQuery.isEmpty ? "No items in this pinboard" : "No results for \"\(store.searchQuery)\"")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.secondary)
-                
-                Text("Copy text, images, links, or colors to see them here.")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary.opacity(0.7))
+                if store.selectedPinboardID == "vault" && store.searchQuery.isEmpty {
+                    Text("No saved accounts yet")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                    
+                    Button {
+                        NSApp.activate(ignoringOtherApps: true)
+                        store.isCredentialModalPresented = true
+                    } label: {
+                        Label("Add Account & Password (⌘N)", systemImage: "plus.circle.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color(hexString: "#FF375F"))
+                } else {
+                    Text(store.searchQuery.isEmpty ? "No items in this pinboard" : "No results for \"\(store.searchQuery)\"")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                    
+                    Text("Copy text, images, links, colors, or save accounts with ⌘N.")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary.opacity(0.7))
+                }
                 Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -46,10 +62,11 @@ public struct CardCollectionView: View {
                     .padding(.vertical, 8)
                 }
                 .onChange(of: store.selectedItemID) { newID in
-                    if let id = newID {
-                        withAnimation(.easeOut(duration: 0.08)) {
-                            proxy.scrollTo(id, anchor: .center)
-                        }
+                    // Only scroll automatically during keyboard arrow navigation!
+                    // Never shift cards under the mouse cursor during clicks/double-clicks!
+                    guard store.lastSelectionWasKeyboard, let id = newID else { return }
+                    withAnimation(.easeOut(duration: 0.08)) {
+                        proxy.scrollTo(id, anchor: .center)
                     }
                 }
             }

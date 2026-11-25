@@ -7,6 +7,7 @@ public enum ContentType: String, Codable, CaseIterable {
     case color
     case image
     case file
+    case credential
     
     public var displayName: String {
         switch self {
@@ -16,6 +17,7 @@ public enum ContentType: String, Codable, CaseIterable {
         case .color: return "Colors"
         case .image: return "Images"
         case .file: return "Files"
+        case .credential: return "Accounts"
         }
     }
     
@@ -27,6 +29,7 @@ public enum ContentType: String, Codable, CaseIterable {
         case .color: return "paintpalette"
         case .image: return "photo"
         case .file: return "folder"
+        case .credential: return "key.fill"
         }
     }
 }

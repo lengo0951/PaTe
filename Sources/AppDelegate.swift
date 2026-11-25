@@ -5,19 +5,16 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     
     public func applicationDidFinishLaunching(_ notification: Notification) {
-        // Setup status item in system menu bar
         setupStatusItem()
         
-        // Setup hotkey manager for Cmd+Shift+V
         HotKeyManager.shared.onHotKeyTriggered = {
             PanelController.shared.toggle()
         }
         HotKeyManager.shared.registerDefaultHotKey()
         
-        // Start monitoring system clipboard
         ClipboardMonitor.shared.startMonitoring()
         
-        print("PasteFlow initialized successfully.")
+        print("PasteFlow v1.2.0 initialized successfully.")
     }
     
     private func setupStatusItem() {
@@ -44,24 +41,33 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         
         menu.addItem(NSMenuItem(title: "Toggle PasteFlow (⌘⇧V)", action: #selector(togglePanel), keyEquivalent: "V"))
+        menu.addItem(NSMenuItem(title: "Add Account / Password... (⌘N)", action: #selector(addAccount), keyEquivalent: "n"))
         menu.addItem(NSMenuItem.separator())
         
         let pauseTitle = HistoryStore.shared.isMonitoringPaused ? "Resume Tracking" : "Pause Tracking"
         menu.addItem(NSMenuItem(title: pauseTitle, action: #selector(togglePause), keyEquivalent: ""))
         
-        menu.addItem(NSMenuItem(title: "Clear History", action: #selector(clearHistory), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Clear History (Keep Pinned & Accounts)", action: #selector(clearHistory), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         
-        menu.addItem(NSMenuItem(title: "About PasteFlow (by Quốc Ngô)", action: #selector(showAbout), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "About PasteFlow v1.2.0 (by Quốc Ngô)", action: #selector(showAbout), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Quit PasteFlow", action: #selector(quitApp), keyEquivalent: "q"))
         
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
-        statusItem.menu = nil // Reset so left click toggles directly
+        statusItem.menu = nil
     }
     
     @objc private func togglePanel() {
         PanelController.shared.toggle()
+    }
+    
+    @objc private func addAccount() {
+        if !PanelController.shared.isVisible {
+            PanelController.shared.show()
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        HistoryStore.shared.isCredentialModalPresented = true
     }
     
     @objc private func togglePause() {
@@ -74,13 +80,13 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     
     @objc private func showAbout() {
         let alert = NSAlert()
-        alert.messageText = "PasteFlow v1.1.0"
-        alert.informativeText = "Next-Gen Native macOS Clipboard Manager\n\nDeveloped with ❤️ by Quốc Ngô (@lengo0951)\nPowered by Swift 6 & QuocNgoKit ⚡\n\nUltra-low memory, instant speed, privacy-first."
+        alert.messageText = "PasteFlow v1.2.0"
+        alert.informativeText = "Next-Gen Native Clipboard & Credential Manager\n\nDeveloped with ❤️ by Quốc Ngô (@lengo0951)\nPowered by Swift 6, AES-256-GCM Vault & QuocNgoKit ⚡\n\nUltra-low memory, instant speed, privacy-first."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "GitHub")
         if alert.runModal() == .alertSecondButtonReturn {
-            if let url = URL(string: "https://github.com/lengo0951/quocngokit") {
+            if let url = URL(string: "https://github.com/lengo0951/PasteFlow") {
                 NSWorkspace.shared.open(url)
             }
         }

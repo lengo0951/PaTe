@@ -466,7 +466,7 @@ public struct SettingsView: View {
             VStack(spacing: 4) {
                 Text("PasteFlow")
                     .font(.system(size: 20, weight: .bold))
-                Text("Version 1.1.0 • Dual-Platform macOS & Windows")
+                Text("Version 1.2.0 • Dual-Platform macOS & Windows")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }

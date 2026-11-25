@@ -8,6 +8,7 @@ public struct ClipboardItem: Identifiable, Codable, Equatable {
     public var rtfData: Data?
     public var htmlData: String?
     public var imageFileName: String?
+    public var thumbnailFileName: String?
     public var imageWidth: Int?
     public var imageHeight: Int?
     public var filePaths: [String]?
@@ -17,6 +18,11 @@ public struct ClipboardItem: Identifiable, Codable, Equatable {
     public var checksum: String
     public var pinboardIDs: [String]
     public var customTitle: String?
+    
+    // Credential Vault metadata (secret password is NEVER stored in plaintext JSON; stored in CredentialVault)
+    public var credentialUsername: String?
+    public var credentialURL: String?
+    public var hasVaultSecret: Bool?
     
     // Kept optional for backward compatibility during JSON decode if present
     public var appIconData: Data? = nil
@@ -28,6 +34,7 @@ public struct ClipboardItem: Identifiable, Codable, Equatable {
         rtfData: Data? = nil,
         htmlData: String? = nil,
         imageFileName: String? = nil,
+        thumbnailFileName: String? = nil,
         imageWidth: Int? = nil,
         imageHeight: Int? = nil,
         filePaths: [String]? = nil,
@@ -36,7 +43,10 @@ public struct ClipboardItem: Identifiable, Codable, Equatable {
         createdAt: Date = Date(),
         checksum: String,
         pinboardIDs: [String] = [],
-        customTitle: String? = nil
+        customTitle: String? = nil,
+        credentialUsername: String? = nil,
+        credentialURL: String? = nil,
+        hasVaultSecret: Bool? = nil
     ) {
         self.id = id
         self.contentType = contentType
@@ -44,6 +54,7 @@ public struct ClipboardItem: Identifiable, Codable, Equatable {
         self.rtfData = rtfData
         self.htmlData = htmlData
         self.imageFileName = imageFileName
+        self.thumbnailFileName = thumbnailFileName
         self.imageWidth = imageWidth
         self.imageHeight = imageHeight
         self.filePaths = filePaths
@@ -53,11 +64,14 @@ public struct ClipboardItem: Identifiable, Codable, Equatable {
         self.checksum = checksum
         self.pinboardIDs = pinboardIDs
         self.customTitle = customTitle
+        self.credentialUsername = credentialUsername
+        self.credentialURL = credentialURL
+        self.hasVaultSecret = hasVaultSecret
         self.appIconData = nil
     }
     
     public var isPinned: Bool {
-        return !pinboardIDs.isEmpty
+        return contentType == .credential || !pinboardIDs.isEmpty
     }
     
     public var characterCount: Int {
@@ -65,7 +79,7 @@ public struct ClipboardItem: Identifiable, Codable, Equatable {
     }
     
     public var lineCount: Int {
-        guard let text = textValue else { return 0 }
+        guard let text = textValue, !text.isEmpty else { return 0 }
         var count = 1
         for scalar in text.unicodeScalars {
             if scalar == "\n" {
@@ -96,6 +110,11 @@ public struct ClipboardItem: Identifiable, Codable, Equatable {
             return custom
         }
         switch contentType {
+        case .credential:
+            if let urlStr = credentialURL, let host = URL(string: urlStr)?.host ?? Optional(urlStr), !host.isEmpty {
+                return host
+            }
+            return credentialUsername ?? "Account"
         case .color:
             return textValue?.uppercased() ?? "Color"
         case .link:
@@ -125,6 +144,8 @@ public struct ClipboardItem: Identifiable, Codable, Equatable {
     
     public var displaySubtitle: String {
         switch contentType {
+        case .credential:
+            return "Encrypted Vault"
         case .color:
             return "Color Code"
         case .link:

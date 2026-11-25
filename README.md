@@ -93,30 +93,40 @@ All benchmarks were measured directly on macOS (Apple Silicon M-Series, macOS Se
 
 | Shortcut | Action |
 | :--- | :--- |
-| **`⌘ + ⇧ + V`** | Toggle PasteFlow HUD from anywhere |
-| **`Space`** | Open / Close Quick Look preview modal |
-| **`Return`** | Paste selected item into frontmost application |
+| **`⌘ + ⇧ + V`** / **`Ctrl + Shift + V`** | Toggle PasteFlow HUD from anywhere |
+| **`Return` / `Double-Click`** | Paste selected clip (or Vault Password) into active app |
+| **`⌘ + U`** / **`Ctrl + U`** | Paste Username (for Vault Account cards) |
+| **`⌘ + ⇧ + Return`** / **`Ctrl + Shift + Enter`** | Auto-Fill `Username ⇥ Password` sequentially |
+| **`⌘ + N`** / **`Ctrl + N`** | Save new Account & Password into encrypted Vault |
 | **`⌥ + Return`** | **Paste as Plain Text** (strips all formatting) |
+| **`Space`** | Open / Close Quick Look preview modal |
+| **`R`** | Rename clip or Edit Vault Account |
 | **`1` – `9`** | Instant paste for card #1 through #9 |
 | **`←` / `→`** | Navigate between clipboard items |
 | **`Delete` / `Backspace`** | Delete selected card from history |
-| **`Esc`** | Dismiss PasteFlow panel or close Quick Look |
+| **`Esc`** | Clear search or dismiss PasteFlow panel |
 
 ---
 
 ## 📦 Installation
 
-### Option 1: Download Pre-built DMG (Recommended)
+### 🍎 macOS Option 1: Homebrew Tap (Recommended)
+```bash
+brew tap lengo0951/tap https://github.com/lengo0951/PasteFlow
+brew install --cask pasteflow
+```
 
-1. Download the latest **[PasteFlow-1.1.0.dmg](https://github.com/lengo0951/PasteFlow/releases/latest)** (only **1.6 MB**).
+### 🍎 macOS Option 2: Download Pre-built DMG
+1. Download **[PasteFlow-1.2.0.dmg](https://github.com/lengo0951/PasteFlow/releases/latest)**.
 2. Open the disk image and drag **PasteFlow.app** into your **Applications** folder.
-3. Launch **PasteFlow**. When prompted, grant **Accessibility** permissions so PasteFlow can automatically simulate `Cmd + V` paste events into your active applications.
+3. On first launch for open-source builds, Control-click **PasteFlow.app** -> **Open** (or allow in *System Settings → Privacy & Security*), and grant **Accessibility** permission for `Cmd + V` synthesis.
 4. Press **`⌘ + ⇧ + V`** to activate!
 
-#### Verify Integrity (SHA-256)
-```text
-928dfb84a8e4d24133903b324b2d165b8dd4ca4f9e7500fd89eda57d87e1e9e9  PasteFlow-1.1.0.dmg
-```
+### 🪟 Windows (10 / 11 x64)
+1. Download **[PasteFlow-v1.2.0-windows.zip](https://github.com/lengo0951/PasteFlow/releases/latest)**.
+2. Extract and run `pasteflow.exe` (single portable native executable, zero installer scripts).
+3. Right-click the PasteFlow System Tray icon to toggle **Launch at Windows Startup** or **Add Account / Password**.
+4. Press **`Ctrl + Shift + V`** to activate!
 
 ---
 

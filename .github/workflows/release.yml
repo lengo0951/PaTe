@@ -1,0 +1,51 @@
+name: Build & Release PasteFlow (macOS + Windows MSVC)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    name: macOS Native (Swift 6 arm64)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build & Package macOS DMG
+        run: |
+          chmod +x build.sh package_dmg.sh
+          ./build.sh
+          ./package_dmg.sh
+      - name: Upload macOS DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pasteflow-macos-dmg
+          path: build/PasteFlow-*.dmg
+
+  build-windows-msvc:
+    name: Windows Native (Rust MSVC x86_64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run Rust Unit Tests
+        working-directory: windows
+        run: cargo test
+      - name: Build Native MSVC Release Binary (with PE Manifest & Icon)
+        working-directory: windows
+        run: cargo build --release --target x86_64-pc-windows-msvc
+      - name: Package Windows Zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist_win, build | Out-Null
+          Copy-Item windows/target/x86_64-pc-windows-msvc/release/pasteflow.exe dist_win/pasteflow.exe
+          Compress-Archive -Path dist_win/* -DestinationPath build/PasteFlow-v1.2.0-windows-msvc.zip -Force
+      - name: Upload Windows MSVC Zip Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pasteflow-windows-msvc
+          path: build/PasteFlow-*-windows-msvc.zip
