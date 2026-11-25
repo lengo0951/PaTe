@@ -170,11 +170,13 @@ public struct ItemCardView: View {
         .onHover { hovering in
             isHovered = hovering
         }
-        // Deterministic, zero-lag monotonic click / double-click handler
+        // Dual-layer deterministic double-click detector:
+        // Matches EITHER macOS hardware clickCount >= 2 OR monotonic uptime window (450ms)
         .onTapGesture {
+            let isHardwareDoubleClick = (NSApp.currentEvent?.clickCount ?? 0) >= 2
             let now = ProcessInfo.processInfo.systemUptime
-            let threshold = max(NSEvent.doubleClickInterval, 0.32)
-            if now - lastClickUptime <= threshold {
+            let threshold = max(NSEvent.doubleClickInterval, 0.45)
+            if isHardwareDoubleClick || (now - lastClickUptime <= threshold) {
                 lastClickUptime = 0
                 onPaste(item, config.pastePlainTextByDefault, .smartAutoFill)
             } else {

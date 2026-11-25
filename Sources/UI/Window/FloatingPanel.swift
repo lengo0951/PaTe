@@ -1,24 +1,31 @@
 import AppKit
 import SwiftUI
 
+/// Custom NSHostingView that ALWAYS accepts the very first mouse click without swallowing it,
+/// guaranteeing instant single-click selection and zero-miss double-click pasting.
+public final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+    public override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        return true
+    }
+}
+
 public class FloatingPanel: NSPanel {
     public init(contentRect: NSRect) {
         super.init(
             contentRect: contentRect,
-            styleMask: [.borderless, .nonactivatingPanel],
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
         
         self.isFloatingPanel = true
-        self.level = .statusBar
-        self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        self.level = .floating
+        self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         self.isOpaque = false
         self.backgroundColor = .clear
         self.hasShadow = true
         self.isMovableByWindowBackground = false
         self.hidesOnDeactivate = false
-        self.becomesKeyOnlyIfNeeded = false
     }
     
     public override var canBecomeKey: Bool {
@@ -26,6 +33,6 @@ public class FloatingPanel: NSPanel {
     }
     
     public override var canBecomeMain: Bool {
-        return false
+        return true
     }
 }

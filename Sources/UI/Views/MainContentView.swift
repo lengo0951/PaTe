@@ -84,6 +84,30 @@ public struct MainContentView: View {
                 
                 Spacer()
                 
+                if !store.isAccessibilityGranted {
+                    Button {
+                        PasteSimulator.shared.openAccessibilitySettings()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 10))
+                            Text("Enable Accessibility for Auto-Paste")
+                                .font(.system(size: 10.5, weight: .semibold))
+                        }
+                        .foregroundColor(.orange)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.orange.opacity(0.16))
+                        .cornerRadius(6)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(Color.orange.opacity(0.45), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .help("macOS requires Accessibility permission to simulate Cmd+V Auto-Paste. Click to open System Settings.")
+                }
+                
                 Text("\(store.filteredItems.count) clips")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)

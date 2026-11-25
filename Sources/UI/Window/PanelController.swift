@@ -45,7 +45,7 @@ public class PanelController: NSObject {
             }
         )
         
-        newPanel.contentView = NSHostingView(rootView: contentView)
+        newPanel.contentView = FirstMouseHostingView(rootView: contentView)
         self.panel = newPanel
     }
     
@@ -300,6 +300,10 @@ public class PanelController: NSObject {
             PasteSimulator.shared.lastFrontmostApplication = frontApp
         }
         
+        // Refresh live macOS Accessibility TCC status so HUD warns immediately if permission was reset
+        HistoryStore.shared.isAccessibilityGranted = PasteSimulator.shared.isAccessibilityGranted
+        
+        // Select first item by default
         HistoryStore.shared.lastSelectionWasKeyboard = false
         if let first = HistoryStore.shared.filteredItems.first {
             HistoryStore.shared.selectedItemID = first.id
@@ -324,6 +328,8 @@ public class PanelController: NSObject {
         panel.setFrame(rect, display: true)
         panel.alphaValue = 0.0
         
+        // Activate PasteFlow + makeKeyAndOrderFront so Enter, Arrows, and Double-Click ALWAYS reach the HUD!
+        NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
         panel.makeFirstResponder(panel)
         
@@ -391,6 +397,10 @@ public class PanelController: NSObject {
             panel.orderOut(nil)
             isVisible = false
         }
+        // NSApp.hide(nil) instructs macOS WindowServer to synchronously restore key focus
+        // to the exact previous application window and blinking text cursor!
+        NSApp.hide(nil)
+        
         PasteSimulator.shared.pasteItem(
             item,
             asPlainText: asPlainText,

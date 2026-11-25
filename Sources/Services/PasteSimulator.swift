@@ -54,6 +54,13 @@ public class PasteSimulator {
         _ = AXIsProcessTrustedWithOptions(options)
     }
     
+    public func openAccessibilitySettings() {
+        promptAccessibilityAccess()
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+    
     /// Copies a credential's Username or Password directly to the system clipboard
     public func copyCredentialToClipboard(_ item: ClipboardItem, usernameOnly: Bool) {
         let value: String

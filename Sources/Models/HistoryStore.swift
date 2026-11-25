@@ -29,6 +29,7 @@ public class HistoryStore: ObservableObject {
     @Published public var isCredentialModalPresented: Bool = false
     @Published public var credentialItemBeingEdited: ClipboardItem? = nil
     @Published public var itemConvertingToCredential: ClipboardItem? = nil
+    @Published public var isAccessibilityGranted: Bool = true
     
     @Published public var ignoredBundleIDs: [String] = [
         "com.agilebits.onepassword",
