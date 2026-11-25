@@ -317,7 +317,7 @@ public class PasteSimulator {
         }
     }
     
-    private static let eventSource = CGEventSource(stateID: .hidSystemState)
+    private static let eventSource = CGEventSource(stateID: .combinedSessionState)
     
     /// Synthesizes arbitrary UTF-16 text directly into the target application's focused input field
     /// via `CGEvent.keyboardSetUnicodeString`, completely bypassing `NSPasteboard` so no clipboard race can ever occur.
@@ -325,7 +325,7 @@ public class PasteSimulator {
         let utf16Chars = Array(string.utf16)
         guard !utf16Chars.isEmpty else { return }
         
-        // Chunk in groups of up to 16 UTF-16 code units per HID event for instant delivery
+        let src = Self.eventSource ?? CGEventSource(stateID: .combinedSessionState)
         let chunkSize = 16
         var offset = 0
         while offset < utf16Chars.count {
@@ -333,40 +333,57 @@ public class PasteSimulator {
             var slice = Array(utf16Chars[offset..<end])
             let count = slice.count
             
-            if let keyDown = CGEvent(keyboardEventSource: Self.eventSource, virtualKey: 0, keyDown: true),
-               let keyUp = CGEvent(keyboardEventSource: Self.eventSource, virtualKey: 0, keyDown: false) {
-                // Explicitly clear modifier flags so any held Shift/Cmd/Option key does not corrupt typed characters
+            if let keyDown = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
+               let keyUp = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) {
                 keyDown.flags = []
                 keyUp.flags = []
                 keyDown.keyboardSetUnicodeString(stringLength: count, unicodeString: &slice)
                 keyUp.keyboardSetUnicodeString(stringLength: count, unicodeString: &slice)
                 keyDown.post(tap: .cghidEventTap)
+                usleep(4_000)
                 keyUp.post(tap: .cghidEventTap)
+                usleep(4_000)
             }
             offset = end
         }
     }
     
     private func simulateCmdV() {
-        let vKeyCode: CGKeyCode = 0x09 // kVK_ANSI_V
-        guard let keyDown = CGEvent(keyboardEventSource: Self.eventSource, virtualKey: vKeyCode, keyDown: true),
-              let keyUp = CGEvent(keyboardEventSource: Self.eventSource, virtualKey: vKeyCode, keyDown: false) else {
+        let cmdKeyCode: CGKeyCode = 0x37 // kVK_Command
+        let vKeyCode: CGKeyCode = 0x09   // kVK_ANSI_V
+        let src = Self.eventSource ?? CGEventSource(stateID: .combinedSessionState)
+        
+        guard let cmdDown = CGEvent(keyboardEventSource: src, virtualKey: cmdKeyCode, keyDown: true),
+              let vDown = CGEvent(keyboardEventSource: src, virtualKey: vKeyCode, keyDown: true),
+              let vUp = CGEvent(keyboardEventSource: src, virtualKey: vKeyCode, keyDown: false),
+              let cmdUp = CGEvent(keyboardEventSource: src, virtualKey: cmdKeyCode, keyDown: false) else {
             return
         }
-        keyDown.flags = .maskCommand
-        keyUp.flags = .maskCommand
-        keyDown.post(tap: .cghidEventTap)
-        keyUp.post(tap: .cghidEventTap)
+        
+        cmdDown.flags = .maskCommand
+        vDown.flags = .maskCommand
+        vUp.flags = .maskCommand
+        cmdUp.flags = []
+        
+        cmdDown.post(tap: .cghidEventTap)
+        usleep(8_000)
+        vDown.post(tap: .cghidEventTap)
+        usleep(8_000)
+        vUp.post(tap: .cghidEventTap)
+        usleep(8_000)
+        cmdUp.post(tap: .cghidEventTap)
     }
     
     private func simulateKey(keyCode: CGKeyCode, flags: CGEventFlags = []) {
-        guard let keyDown = CGEvent(keyboardEventSource: Self.eventSource, virtualKey: keyCode, keyDown: true),
-              let keyUp = CGEvent(keyboardEventSource: Self.eventSource, virtualKey: keyCode, keyDown: false) else {
+        let src = Self.eventSource ?? CGEventSource(stateID: .combinedSessionState)
+        guard let keyDown = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: true),
+              let keyUp = CGEvent(keyboardEventSource: src, virtualKey: keyCode, keyDown: false) else {
             return
         }
         keyDown.flags = flags
         keyUp.flags = flags
         keyDown.post(tap: .cghidEventTap)
+        usleep(6_000)
         keyUp.post(tap: .cghidEventTap)
     }
 }
