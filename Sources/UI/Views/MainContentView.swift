@@ -55,7 +55,7 @@ public struct MainContentView: View {
                 isSettingsPresented: $isSettingsPresented,
                 onSubmitSearch: {
                     if let target = selectedItem {
-                        onPaste(target, config.pastePlainTextByDefault, .defaultSecret)
+                        onPaste(target, config.pastePlainTextByDefault, .smartAutoFill)
                     }
                 }
             )
@@ -108,10 +108,11 @@ public struct MainContentView: View {
                 
                 HStack(spacing: 12) {
                     if selectedItem?.contentType == .credential {
-                        HintPill(key: "⏎ / 2xClick", label: "Paste Pass")
-                        HintPill(key: "⌘U", label: "Paste User")
-                        HintPill(key: "⌘⇧⏎", label: "Auto-Fill Tab")
-                        HintPill(key: "R", label: "Edit Account")
+                        HintPill(key: "⏎ / 2xClick", label: "Auto-Fill (User ⇥ Pass)")
+                        HintPill(key: "⇧⏎", label: "Auto-Fill + Login")
+                        HintPill(key: "⌘U", label: "User (+Copy Pass)")
+                        HintPill(key: "⌥⏎", label: "Pass Only")
+                        HintPill(key: "R", label: "Edit")
                         HintPill(key: "⌘N", label: "New Account")
                     } else {
                         HintPill(key: "⏎ / 2xClick", label: "Paste")

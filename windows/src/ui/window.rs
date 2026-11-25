@@ -147,53 +147,68 @@ pub mod win32 {
         }
     }
 
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub enum WinCredPasteMode {
+        SmartAutoFill,
+        SmartAutoFillAndSubmit,
+        UsernameAndPreloadPass,
+        PasswordOnly,
+    }
+
     unsafe fn execute_item_paste(
         hwnd: HWND,
         target: Option<HWND>,
         item: &ClipboardItem,
         vault_secret: Option<String>,
-        username_only: bool,
-        autofill_tab: bool,
+        mode: WinCredPasteMode,
     ) {
         if item.content_type == ContentType::Credential {
             let user = item.credential_username.clone().unwrap_or_default();
             let secret = vault_secret.unwrap_or_default();
 
-            if autofill_tab {
-                restore_focus(target);
-                if !user.is_empty() {
-                    set_clipboard_text_with_tag(hwnd, &user, false);
+            // Always pre-load Password onto Clipboard upfront so there is ZERO clipboard swap race!
+            let clipboard_val = if !secret.is_empty() { &secret } else { &user };
+            if !clipboard_val.is_empty() {
+                set_clipboard_text_with_tag(hwnd, clipboard_val, true);
+                let _ = SetTimer(hwnd, IDT_CLEAR_SECRET, 60_000, None);
+            }
+
+            restore_focus(target);
+
+            match mode {
+                WinCredPasteMode::PasswordOnly => {
                     send_ctrl_v();
-                    std::thread::sleep(std::time::Duration::from_millis(60));
                 }
-                send_tab_key();
-                std::thread::sleep(std::time::Duration::from_millis(45));
-                if !secret.isEmpty_str() {
-                    set_clipboard_text_with_tag(hwnd, &secret, true);
-                    send_ctrl_v();
-                    let _ = SetTimer(hwnd, IDT_CLEAR_SECRET, 15_000, None);
+                WinCredPasteMode::UsernameAndPreloadPass => {
+                    // Type Username directly via Unicode HID stream while Password stays ready on Clipboard for Page 2!
+                    if !user.is_empty() {
+                        send_unicode_text(&user);
+                    } else {
+                        send_ctrl_v();
+                    }
                 }
-            } else if username_only {
-                set_clipboard_text_with_tag(hwnd, &user, false);
-                simulate_paste(target);
-            } else {
-                set_clipboard_text_with_tag(hwnd, &secret, true);
-                simulate_paste(target);
-                let _ = SetTimer(hwnd, IDT_CLEAR_SECRET, 15_000, None);
+                WinCredPasteMode::SmartAutoFill | WinCredPasteMode::SmartAutoFillAndSubmit => {
+                    if !user.is_empty() && !secret.is_empty() {
+                        send_unicode_text(&user);
+                        std::thread::sleep(std::time::Duration::from_millis(35));
+                        send_tab_key();
+                        std::thread::sleep(std::time::Duration::from_millis(45));
+                        send_ctrl_v();
+                    } else if !user.is_empty() {
+                        send_unicode_text(&user);
+                    } else {
+                        send_ctrl_v();
+                    }
+
+                    if mode == WinCredPasteMode::SmartAutoFillAndSubmit {
+                        std::thread::sleep(std::time::Duration::from_millis(45));
+                        send_return_key();
+                    }
+                }
             }
         } else if let Some(ref text) = item.text_value {
             set_clipboard_text_with_tag(hwnd, text, false);
             simulate_paste(target);
-        }
-    }
-
-    trait StrEmptyExt {
-        fn isEmpty_str(&self) -> bool;
-    }
-    impl StrEmptyExt for String {
-        #[inline]
-        fn isEmpty_str(&self) -> bool {
-            self.is_empty()
         }
     }
 
@@ -538,7 +553,13 @@ pub mod win32 {
                             drop(state);
 
                             if let Some(item) = item_opt {
-                                execute_item_paste(hwnd, target, &item, secret, false, false);
+                                execute_item_paste(
+                                    hwnd,
+                                    target,
+                                    &item,
+                                    secret,
+                                    WinCredPasteMode::SmartAutoFill,
+                                );
                             }
                         }
                     }
@@ -549,6 +570,7 @@ pub mod win32 {
                 let vk = wparam.0 as i32;
                 let ctrl_down = (GetAsyncKeyState(0x11) as u16 & 0x8000) != 0;
                 let shift_down = (GetAsyncKeyState(0x10) as u16 & 0x8000) != 0;
+                let alt_down = (GetAsyncKeyState(0x12) as u16 & 0x8000) != 0;
 
                 if let Some(ref state_arc) = GLOBAL_STATE {
                     let mut state = state_arc.lock();
@@ -573,15 +595,24 @@ pub mod win32 {
                             open_credential_dialog(hwnd);
                         }
                         0x55 if ctrl_down => {
-                            // Ctrl + U -> Paste Username
+                            // Ctrl + U -> Type Username & Pre-load Password to Clipboard
                             if let Some(&real_idx) = visible.get(state.selected_index) {
                                 let target = state.target_hwnd;
                                 let item_opt = state.store.items.get(real_idx).cloned();
+                                let secret = item_opt
+                                    .as_ref()
+                                    .and_then(|it| state.store.vault.get_secret(&it.id));
                                 state.is_visible = false;
                                 let _ = ShowWindow(hwnd, SW_HIDE);
                                 drop(state);
                                 if let Some(item) = item_opt {
-                                    execute_item_paste(hwnd, target, &item, None, true, false);
+                                    execute_item_paste(
+                                        hwnd,
+                                        target,
+                                        &item,
+                                        secret,
+                                        WinCredPasteMode::UsernameAndPreloadPass,
+                                    );
                                 }
                             }
                         }
@@ -591,7 +622,7 @@ pub mod win32 {
                             let _ = InvalidateRect(hwnd, None, false);
                         }
                         0x0D => {
-                            // VK_RETURN (covers both main Return and Numpad Enter!)
+                            // VK_RETURN: Default Smart Auto-Fill (User -> Tab -> Pass)
                             if let Some(&real_idx) = visible.get(state.selected_index) {
                                 let target = state.target_hwnd;
                                 let item_opt = state.store.items.get(real_idx).cloned();
@@ -604,14 +635,14 @@ pub mod win32 {
                                 drop(state);
 
                                 if let Some(item) = item_opt {
-                                    execute_item_paste(
-                                        hwnd,
-                                        target,
-                                        &item,
-                                        secret,
-                                        false,
-                                        ctrl_down && shift_down,
-                                    );
+                                    let mode = if shift_down {
+                                        WinCredPasteMode::SmartAutoFillAndSubmit
+                                    } else if alt_down {
+                                        WinCredPasteMode::PasswordOnly
+                                    } else {
+                                        WinCredPasteMode::SmartAutoFill
+                                    };
+                                    execute_item_paste(hwnd, target, &item, secret, mode);
                                 }
                             }
                         }
@@ -628,7 +659,13 @@ pub mod win32 {
                                 drop(state);
 
                                 if let Some(item) = item_opt {
-                                    execute_item_paste(hwnd, target, &item, secret, false, false);
+                                    execute_item_paste(
+                                        hwnd,
+                                        target,
+                                        &item,
+                                        secret,
+                                        WinCredPasteMode::SmartAutoFill,
+                                    );
                                 }
                             }
                         }
@@ -995,7 +1032,9 @@ pub mod win32 {
 
             let mut msg = MSG::default();
             while GetMessageW(&mut msg, None, 0, 0).as_bool() {
-                let dlg_opt = GLOBAL_STATE.as_ref().and_then(|s| s.lock().cred_dialog_hwnd);
+                let dlg_opt = (*std::ptr::addr_of!(GLOBAL_STATE))
+                    .as_ref()
+                    .and_then(|s| s.lock().cred_dialog_hwnd);
                 if let Some(dlg) = dlg_opt {
                     if IsWindow(dlg).as_bool() && IsDialogMessageW(dlg, &msg).as_bool() {
                         continue;

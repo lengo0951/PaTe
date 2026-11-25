@@ -96,10 +96,10 @@ public struct ItemCardView: View {
                     CredentialContentView(
                         item: item,
                         onPasteUsername: {
-                            onPaste(item, true, .usernameOnly)
+                            onPaste(item, true, .usernameOnlyAndPreloadSecret)
                         },
                         onPastePassword: {
-                            onPaste(item, true, .defaultSecret)
+                            onPaste(item, true, .passwordOnly)
                         }
                     )
                 case .text, .code:
@@ -176,7 +176,7 @@ public struct ItemCardView: View {
             let threshold = max(NSEvent.doubleClickInterval, 0.32)
             if now - lastClickUptime <= threshold {
                 lastClickUptime = 0
-                onPaste(item, config.pastePlainTextByDefault, .defaultSecret)
+                onPaste(item, config.pastePlainTextByDefault, .smartAutoFill)
             } else {
                 lastClickUptime = now
                 store.lastSelectionWasKeyboard = false
@@ -185,14 +185,18 @@ public struct ItemCardView: View {
         }
         .contextMenu {
             if item.contentType == .credential {
-                Button("Paste Password to Active App (Return / Double-Click)") {
-                    onPaste(item, true, .defaultSecret)
+                Button("⚡ Auto-Fill Login: User ⇥ Pass (Return / Double-Click)") {
+                    onPaste(item, true, .smartAutoFill)
                 }
-                Button("Paste Username to Active App (⌘U)") {
-                    onPaste(item, true, .usernameOnly)
+                Button("🚀 Auto-Fill & Submit Login (⇧Return)") {
+                    onPaste(item, true, .smartAutoFillAndSubmit)
                 }
-                Button("Auto-Fill Login: User ⇥ Pass (⌘⇧Return)") {
-                    onPaste(item, true, .autoFillTab)
+                Divider()
+                Button("👤 Type Username & Pre-load Pass (⌘U)") {
+                    onPaste(item, true, .usernameOnlyAndPreloadSecret)
+                }
+                Button("🔑 Paste Password Only (⌥Return)") {
+                    onPaste(item, true, .passwordOnly)
                 }
                 Divider()
                 Button("Copy Password to Clipboard (⌘C)") {
@@ -208,10 +212,10 @@ public struct ItemCardView: View {
                 }
             } else {
                 Button("Paste to Active App (Return / Double-Click)") {
-                    onPaste(item, false, .defaultSecret)
+                    onPaste(item, false, .smartAutoFill)
                 }
                 Button("Paste as Plain Text (⌥Return)") {
-                    onPaste(item, true, .defaultSecret)
+                    onPaste(item, true, .smartAutoFill)
                 }
                 Button("Quick Look Preview (Space)") {
                     store.activeQuickLookItem = item

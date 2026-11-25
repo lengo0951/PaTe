@@ -155,8 +155,8 @@ public struct QuickLookView: View {
                                         .textSelection(.enabled)
                                 }
                                 Spacer()
-                                Button("Paste Username (⌘U)") {
-                                    onPaste(item, true, .usernameOnly)
+                                Button("Type User & Pre-load Pass (⌘U)") {
+                                    onPaste(item, true, .usernameOnlyAndPreloadSecret)
                                 }
                                 .buttonStyle(.bordered)
                             }
@@ -300,25 +300,25 @@ public struct QuickLookView: View {
             // Footer Actions
             HStack(spacing: 12) {
                 if item.contentType == .credential {
-                    Button("Paste Password (⏎)") {
-                        onPaste(item, true, .defaultSecret)
+                    Button("Auto-Fill User ⇥ Pass (⏎)") {
+                        onPaste(item, true, .smartAutoFill)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color(hexString: "#FF375F"))
                     
-                    Button("Auto-Fill User ⇥ Pass") {
-                        onPaste(item, true, .autoFillTab)
+                    Button("Paste Password Only (⌥⏎)") {
+                        onPaste(item, true, .passwordOnly)
                     }
                     .buttonStyle(.bordered)
                 } else {
                     Button("Paste (Return)") {
-                        onPaste(item, false, .defaultSecret)
+                        onPaste(item, false, .smartAutoFill)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppConfig.shared.accentTheme.color)
                     
                     Button("Paste Plain Text (⌥Return)") {
-                        onPaste(item, true, .defaultSecret)
+                        onPaste(item, true, .smartAutoFill)
                     }
                     .buttonStyle(.bordered)
                 }
@@ -364,12 +364,22 @@ public struct QuickLookView: View {
                     return nil
                 }
                 if event.keyCode == 36 || event.keyCode == 76 {
-                    let isPlainText = event.modifierFlags.contains(.option) || event.modifierFlags.contains(.shift)
-                    onPaste(item, isPlainText, .defaultSecret)
+                    if item.contentType == .credential {
+                        if event.modifierFlags.contains(.shift) {
+                            onPaste(item, true, .smartAutoFillAndSubmit)
+                        } else if event.modifierFlags.contains(.option) {
+                            onPaste(item, true, .passwordOnly)
+                        } else {
+                            onPaste(item, true, .smartAutoFill)
+                        }
+                    } else {
+                        let isPlainText = event.modifierFlags.contains(.option) || event.modifierFlags.contains(.shift)
+                        onPaste(item, isPlainText, .smartAutoFill)
+                    }
                     return nil
                 }
                 if event.keyCode == 32 && event.modifierFlags.contains(.command) && item.contentType == .credential {
-                    onPaste(item, true, .usernameOnly)
+                    onPaste(item, true, .usernameOnlyAndPreloadSecret)
                     return nil
                 }
                 if event.keyCode == 8 && event.modifierFlags.contains(.command) {

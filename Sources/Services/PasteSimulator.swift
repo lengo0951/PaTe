@@ -3,9 +3,17 @@ import ApplicationServices
 import Carbon
 
 public enum CredentialPasteMode {
-    case defaultSecret
-    case usernameOnly
-    case autoFillTab
+    /// Default on Enter / Double-Click:
+    /// Auto-detects if cursor is already in a Password field (`AXSecureTextField`).
+    /// - If in Username/Text field: Pre-loads Password to Clipboard, types Username via Unicode HID stream -> Tab -> Cmd+V Password.
+    /// - If already in Password field (or no Username exists): Pastes Password only.
+    case smartAutoFill
+    /// Shift + Enter: Fills Username -> Tab -> Password -> Enter (submits login form).
+    case smartAutoFillAndSubmit
+    /// Cmd + U or "User" button: Types Username into current field AND pre-loads Password onto Clipboard for 2-step login pages.
+    case usernameOnlyAndPreloadSecret
+    /// Option + Enter or "Pass" button: Pastes Password only.
+    case passwordOnly
 }
 
 @MainActor
@@ -46,8 +54,7 @@ public class PasteSimulator {
         _ = AXIsProcessTrustedWithOptions(options)
     }
     
-    /// Copies a credential's Username or Password directly to the system clipboard so the user
-    /// can also manually press Cmd+V anywhere (browsers, VMs, Remote Desktop, terminals).
+    /// Copies a credential's Username or Password directly to the system clipboard
     public func copyCredentialToClipboard(_ item: ClipboardItem, usernameOnly: Bool) {
         let value: String
         if usernameOnly {
@@ -63,38 +70,127 @@ public class PasteSimulator {
         }
     }
     
+    /// Inspects the target application's currently focused Accessibility element in < 0.4ms
+    /// to detect if the user's cursor is already inside an `<input type="password">` (`AXSecureTextField`).
+    private func isTargetFocusedFieldSecurePassword(pid: pid_t) -> Bool {
+        guard isAccessibilityGranted else { return false }
+        let appElement = AXUIElementCreateApplication(pid)
+        var focusedRef: CFTypeRef?
+        let err = AXUIElementCopyAttributeValue(appElement, kAXFocusedUIElementAttribute as CFString, &focusedRef)
+        guard err == .success, let focusedObj = focusedRef else { return false }
+        let focusedElement = focusedObj as! AXUIElement
+        
+        var subroleRef: CFTypeRef?
+        if AXUIElementCopyAttributeValue(focusedElement, kAXSubroleAttribute as CFString, &subroleRef) == .success,
+           let subrole = subroleRef as? String,
+           subrole == (kAXSecureTextFieldSubrole as String) {
+            return true
+        }
+        
+        var roleDescRef: CFTypeRef?
+        if AXUIElementCopyAttributeValue(focusedElement, kAXRoleDescriptionAttribute as CFString, &roleDescRef) == .success,
+           let roleDesc = roleDescRef as? String,
+           roleDesc.localizedCaseInsensitiveContains("secure") || roleDesc.localizedCaseInsensitiveContains("password") {
+            return true
+        }
+        return false
+    }
+    
     public func pasteItem(
         _ item: ClipboardItem,
         asPlainText: Bool = false,
-        credentialMode: CredentialPasteMode = .defaultSecret,
+        credentialMode: CredentialPasteMode = .smartAutoFill,
         store: HistoryStore,
         completion: (() -> Void)? = nil
     ) {
-        let pasteboard = NSPasteboard.general
-        
-        // Special handling for Credential Vault auto-fill (Username -> Tab -> Password)
-        if item.contentType == .credential && credentialMode == .autoFillTab {
-            let username = item.credentialUsername ?? ""
+        // MARK: - 1. Smart Hybrid Auto-Fill for Credential Vault Items
+        if item.contentType == .credential {
+            let username = (item.credentialUsername ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let secret = CredentialVault.shared.getSecret(for: item.id) ?? item.textValue ?? ""
             
             SoundManager.shared.playPaste()
             completion?()
             
-            deliverFocusToTargetApp { [weak self] in
-                guard let self = self else { return }
-                if !username.isEmpty {
-                    self.writeStringToPasteboard(username)
-                    self.simulateCmdV()
+            switch credentialMode {
+            case .passwordOnly:
+                let toPaste = secret.isEmpty ? username : secret
+                let expectedCount = writeStringToPasteboard(toPaste)
+                scheduleClipboardAutoClear(expectedChangeCount: expectedCount, delay: 60.0)
+                deliverFocusToTargetApp { [weak self] _ in
+                    self?.simulateCmdV()
                 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.075) { [weak self] in
+                
+            case .usernameOnlyAndPreloadSecret:
+                // 2-Step Login Magic: Pre-load Password onto Clipboard right now so on Page 2 user just hits Cmd+V!
+                if !secret.isEmpty {
+                    let expectedCount = writeStringToPasteboard(secret)
+                    scheduleClipboardAutoClear(expectedChangeCount: expectedCount, delay: 60.0)
+                } else if !username.isEmpty {
+                    writeStringToPasteboard(username)
+                }
+                
+                deliverFocusToTargetApp { [weak self] _ in
                     guard let self = self else { return }
-                    self.simulateKey(keyCode: 0x30) // kVK_Tab
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.055) { [weak self] in
-                        guard let self = self else { return }
+                    if !username.isEmpty {
                         if !secret.isEmpty {
-                            let expectedCount = self.writeStringToPasteboard(secret)
+                            // Type username directly via Unicode HID so Clipboard stays pre-loaded with Password!
+                            self.typeUnicodeString(username)
+                        } else {
                             self.simulateCmdV()
-                            self.scheduleClipboardAutoClear(expectedChangeCount: expectedCount, delay: 60.0)
+                        }
+                    }
+                }
+                
+            case .smartAutoFill, .smartAutoFillAndSubmit:
+                let shouldSubmit = (credentialMode == .smartAutoFillAndSubmit)
+                // Always pre-load Password onto Clipboard upfront (ZERO clipboard swap race during auto-fill!)
+                let clipboardValue = secret.isEmpty ? username : secret
+                let expectedCount = writeStringToPasteboard(clipboardValue)
+                scheduleClipboardAutoClear(expectedChangeCount: expectedCount, delay: 60.0)
+                
+                deliverFocusToTargetApp { [weak self] targetPID in
+                    guard let self = self else { return }
+                    
+                    // If account has no username, or user's cursor is ALREADY inside a Password input box:
+                    let alreadyInPasswordField = (targetPID != nil) && self.isTargetFocusedFieldSecurePassword(pid: targetPID!)
+                    if username.isEmpty || alreadyInPasswordField {
+                        self.simulateCmdV()
+                        if shouldSubmit {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.050) { [weak self] in
+                                self?.simulateKey(keyCode: 0x24, flags: []) // kVK_Return
+                            }
+                        }
+                        return
+                    }
+                    
+                    // Full 1-Shot Hybrid Auto-Fill:
+                    // Step 1: Type Username directly via Unicode HID stream (does not touch Clipboard!)
+                    self.typeUnicodeString(username)
+                    
+                    guard !secret.isEmpty else {
+                        if shouldSubmit {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.045) { [weak self] in
+                                self?.simulateKey(keyCode: 0x24, flags: [])
+                            }
+                        }
+                        return
+                    }
+                    
+                    // Step 2: After DOM input settles (40ms), press Tab (with cleared modifier flags) to focus Password field
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.040) { [weak self] in
+                        guard let self = self else { return }
+                        self.simulateKey(keyCode: 0x30, flags: []) // kVK_Tab
+                        
+                        // Step 3: After focus lands in Password field (45ms), paste pre-loaded Password via Cmd+V!
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.045) { [weak self] in
+                            guard let self = self else { return }
+                            self.simulateCmdV()
+                            
+                            if shouldSubmit {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.050) { [weak self] in
+                                    self?.simulateKey(keyCode: 0x24, flags: []) // kVK_Return
+                                }
+                            }
                         }
                     }
                 }
@@ -102,26 +198,12 @@ public class PasteSimulator {
             return
         }
         
-        // 1. Copy item to NSPasteboard.general
-        // Note: We only tag with `AutoGeneratedType` (so PasteFlow's monitor doesn't re-record it).
-        // We intentionally avoid `TransientType` because Chrome/Electron/WebKit forms sometimes reject pasting transient items!
+        // MARK: - 2. Standard Clipboard Item Paste
+        let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.AutoGeneratedType"))
-        var scheduleAutoClearCount: Int? = nil
         
         switch item.contentType {
-        case .credential:
-            if credentialMode == .usernameOnly {
-                let username = item.credentialUsername ?? ""
-                pasteboard.setString(username, forType: .string)
-            } else {
-                let secret = CredentialVault.shared.getSecret(for: item.id) ?? item.textValue ?? ""
-                // Fallback to username if user created an account with only username
-                let valueToPaste = secret.isEmpty ? (item.credentialUsername ?? "") : secret
-                pasteboard.setString(valueToPaste, forType: .string)
-                scheduleAutoClearCount = pasteboard.changeCount
-            }
-            
         case .image:
             if let imgName = item.imageFileName,
                let image = store.loadImage(fileName: imgName),
@@ -150,19 +232,11 @@ public class PasteSimulator {
             }
         }
         
-        // 2. Play paste sound & dismiss UI
         SoundManager.shared.playPaste()
         completion?()
         
-        // 3. Schedule auto-clear (60s so manual Cmd+V also works if needed!)
-        if let count = scheduleAutoClearCount {
-            scheduleClipboardAutoClear(expectedChangeCount: count, delay: 60.0)
-        }
-        
-        // 4. Deliver focus to target app and synthesize Cmd+V
-        deliverFocusToTargetApp { [weak self] in
-            guard let self = self else { return }
-            self.simulateCmdV()
+        deliverFocusToTargetApp { [weak self] _ in
+            self?.simulateCmdV()
         }
     }
     
@@ -186,9 +260,7 @@ public class PasteSimulator {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
     
-    /// Deterministically hands focus back to target application (even if PasteFlow was activated by a modal sheet!)
-    private func deliverFocusToTargetApp(ready: @escaping @MainActor () -> Void) {
-        // Fallback: if lastFrontmostApplication is nil or terminated, find first regular active app
+    private func deliverFocusToTargetApp(ready: @escaping @MainActor (pid_t?) -> Void) {
         if self.lastFrontmostApplication == nil || self.lastFrontmostApplication?.isTerminated == true {
             self.lastFrontmostApplication = NSWorkspace.shared.runningApplications.first(where: {
                 $0.activationPolicy == .regular && $0.bundleIdentifier != Bundle.main.bundleIdentifier && !$0.isTerminated
@@ -197,19 +269,19 @@ public class PasteSimulator {
         
         guard let targetApp = self.lastFrontmostApplication, !targetApp.isTerminated else {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.015) {
-                ready()
+                ready(nil)
             }
             return
         }
         
-        if targetApp.isActive && NSWorkspace.shared.frontmostApplication?.processIdentifier == targetApp.processIdentifier && !NSApp.isActive {
+        let pid = targetApp.processIdentifier
+        if targetApp.isActive && NSWorkspace.shared.frontmostApplication?.processIdentifier == pid && !NSApp.isActive {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.012) {
-                ready()
+                ready(pid)
             }
             return
         }
         
-        // If PasteFlow became active (e.g. user opened Add Account modal), yield activation explicitly
         if NSApp.isActive {
             NSApp.deactivate()
         }
@@ -220,11 +292,12 @@ public class PasteSimulator {
     private func waitForTargetAppActivation(
         targetApp: NSRunningApplication,
         attemptsRemaining: Int,
-        ready: @escaping @MainActor () -> Void
+        ready: @escaping @MainActor (pid_t?) -> Void
     ) {
-        if (targetApp.isActive && NSWorkspace.shared.frontmostApplication?.processIdentifier == targetApp.processIdentifier) || attemptsRemaining <= 0 {
+        let pid = targetApp.processIdentifier
+        if (targetApp.isActive && NSWorkspace.shared.frontmostApplication?.processIdentifier == pid) || attemptsRemaining <= 0 {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.012) {
-                ready()
+                ready(pid)
             }
             return
         }
@@ -238,6 +311,34 @@ public class PasteSimulator {
     }
     
     private static let eventSource = CGEventSource(stateID: .hidSystemState)
+    
+    /// Synthesizes arbitrary UTF-16 text directly into the target application's focused input field
+    /// via `CGEvent.keyboardSetUnicodeString`, completely bypassing `NSPasteboard` so no clipboard race can ever occur.
+    private func typeUnicodeString(_ string: String) {
+        let utf16Chars = Array(string.utf16)
+        guard !utf16Chars.isEmpty else { return }
+        
+        // Chunk in groups of up to 16 UTF-16 code units per HID event for instant delivery
+        let chunkSize = 16
+        var offset = 0
+        while offset < utf16Chars.count {
+            let end = min(offset + chunkSize, utf16Chars.count)
+            var slice = Array(utf16Chars[offset..<end])
+            let count = slice.count
+            
+            if let keyDown = CGEvent(keyboardEventSource: Self.eventSource, virtualKey: 0, keyDown: true),
+               let keyUp = CGEvent(keyboardEventSource: Self.eventSource, virtualKey: 0, keyDown: false) {
+                // Explicitly clear modifier flags so any held Shift/Cmd/Option key does not corrupt typed characters
+                keyDown.flags = []
+                keyUp.flags = []
+                keyDown.keyboardSetUnicodeString(stringLength: count, unicodeString: &slice)
+                keyUp.keyboardSetUnicodeString(stringLength: count, unicodeString: &slice)
+                keyDown.post(tap: .cghidEventTap)
+                keyUp.post(tap: .cghidEventTap)
+            }
+            offset = end
+        }
+    }
     
     private func simulateCmdV() {
         let vKeyCode: CGKeyCode = 0x09 // kVK_ANSI_V

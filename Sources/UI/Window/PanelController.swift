@@ -129,26 +129,32 @@ public class PanelController: NSObject {
                 return nil
             }
             
-            // 2. Return (36) OR Keypad Enter (76) -> ALWAYS PASTE SELECTED ITEM IMMEDIATELY!
+            // 2. Return (36) OR Keypad Enter (76) -> ALWAYS PASTE / SMART AUTO-FILL IMMEDIATELY!
             if event.keyCode == 36 || event.keyCode == 76 {
                 if let item = self.selectedOrFirstItem() {
-                    if item.contentType == .credential && flags.contains(.command) && flags.contains(.shift) {
-                        self.paste(item: item, asPlainText: false, credentialMode: .autoFillTab)
+                    if item.contentType == .credential {
+                        if flags.contains(.shift) {
+                            self.paste(item: item, asPlainText: true, credentialMode: .smartAutoFillAndSubmit)
+                        } else if flags.contains(.option) {
+                            self.paste(item: item, asPlainText: true, credentialMode: .passwordOnly)
+                        } else {
+                            self.paste(item: item, asPlainText: true, credentialMode: .smartAutoFill)
+                        }
                     } else {
                         let invertPlain = flags.contains(.option) || flags.contains(.shift)
                         let asPlain = invertPlain
                             ? !AppConfig.shared.pastePlainTextByDefault
                             : AppConfig.shared.pastePlainTextByDefault
-                        self.paste(item: item, asPlainText: asPlain, credentialMode: .defaultSecret)
+                        self.paste(item: item, asPlainText: asPlain, credentialMode: .smartAutoFill)
                     }
                 }
                 return nil
             }
             
-            // 3. Cmd + U (32) -> Paste Username for Credential item
+            // 3. Cmd + U (32) -> Type Username & Pre-load Password to Clipboard (for 2-Step Logins)
             if event.keyCode == 32 && flags.contains(.command) {
                 if let item = self.selectedOrFirstItem(), item.contentType == .credential {
-                    self.paste(item: item, asPlainText: true, credentialMode: .usernameOnly)
+                    self.paste(item: item, asPlainText: true, credentialMode: .usernameOnlyAndPreloadSecret)
                     return nil
                 }
             }
@@ -267,7 +273,7 @@ public class PanelController: NSObject {
                         self.paste(
                             item: items[index],
                             asPlainText: AppConfig.shared.pastePlainTextByDefault,
-                            credentialMode: .defaultSecret
+                            credentialMode: .smartAutoFill
                         )
                     }
                     return nil
@@ -374,7 +380,7 @@ public class PanelController: NSObject {
     public func paste(
         item: ClipboardItem,
         asPlainText: Bool,
-        credentialMode: CredentialPasteMode = .defaultSecret
+        credentialMode: CredentialPasteMode = .smartAutoFill
     ) {
         removeKeyboardMonitor()
         if let monitor = globalClickMonitor {

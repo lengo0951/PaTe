@@ -141,7 +141,7 @@ impl ClipboardItem {
 
         let preview = if self.content_type == ContentType::Credential {
             let user = self.credential_username.as_deref().unwrap_or("(no user)");
-            format!("User: {}\r\nPass: ••••••••••••\r\n\r\n[Enter] Paste Pass\r\n[Ctrl+U] Paste User", user)
+            format!("User: {}\r\nPass: ••••••••••••\r\n\r\n[Enter/2xClick] User -> Pass\r\n[Ctrl+U] User (+Copy Pass)", user)
         } else if let Some(ref text) = self.text_value {
             text.chars().take(160).collect::<String>()
         } else {

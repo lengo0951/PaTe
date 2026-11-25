@@ -14,7 +14,7 @@ pub mod win32 {
     use windows::Win32::UI::WindowsAndMessaging::*;
 
     /// Deterministically restores focus to `target_hwnd` bypassing Windows 11 Foreground Lock
-    /// via `AttachThreadInput`, then synthesizes `Ctrl + V`.
+    /// via `AttachThreadInput`.
     pub fn restore_focus(target_hwnd: Option<HWND>) {
         unsafe {
             if let Some(hwnd) = target_hwnd {
@@ -35,7 +35,7 @@ pub mod win32 {
                         if attached {
                             let _ = AttachThreadInput(current_tid, target_tid, false);
                         }
-                        std::thread::sleep(std::time::Duration::from_millis(14));
+                        std::thread::sleep(std::time::Duration::from_millis(15));
                     }
                 }
             }
@@ -45,6 +45,43 @@ pub mod win32 {
     pub fn simulate_paste(target_hwnd: Option<HWND>) {
         restore_focus(target_hwnd);
         send_ctrl_v();
+    }
+
+    /// Synthesizes arbitrary UTF-16 text directly into the focused input field via `KEYEVENTF_UNICODE`
+    /// without touching the Windows Clipboard (eliminates multi-process browser clipboard races!).
+    pub fn send_unicode_text(text: &str) {
+        unsafe {
+            let mut inputs: Vec<INPUT> = Vec::with_capacity(text.len() * 2);
+            for unit in text.encode_utf16() {
+                inputs.push(INPUT {
+                    r#type: INPUT_KEYBOARD,
+                    Anonymous: INPUT_0 {
+                        ki: KEYBDINPUT {
+                            wVk: VIRTUAL_KEY(0),
+                            wScan: unit,
+                            dwFlags: KEYEVENTF_UNICODE,
+                            time: 0,
+                            dwExtraInfo: 0,
+                        },
+                    },
+                });
+                inputs.push(INPUT {
+                    r#type: INPUT_KEYBOARD,
+                    Anonymous: INPUT_0 {
+                        ki: KEYBDINPUT {
+                            wVk: VIRTUAL_KEY(0),
+                            wScan: unit,
+                            dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+                            time: 0,
+                            dwExtraInfo: 0,
+                        },
+                    },
+                });
+            }
+            if !inputs.is_empty() {
+                let _ = SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
+            }
+        }
     }
 
     pub fn send_tab_key() {
@@ -67,6 +104,38 @@ pub mod win32 {
                     Anonymous: INPUT_0 {
                         ki: KEYBDINPUT {
                             wVk: VIRTUAL_KEY(0x09),
+                            wScan: 0,
+                            dwFlags: KEYEVENTF_KEYUP,
+                            time: 0,
+                            dwExtraInfo: 0,
+                        },
+                    },
+                },
+            ];
+            let _ = SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
+        }
+    }
+
+    pub fn send_return_key() {
+        unsafe {
+            let inputs = [
+                INPUT {
+                    r#type: INPUT_KEYBOARD,
+                    Anonymous: INPUT_0 {
+                        ki: KEYBDINPUT {
+                            wVk: VIRTUAL_KEY(0x0D), // VK_RETURN
+                            wScan: 0,
+                            dwFlags: KEYBD_EVENT_FLAGS(0),
+                            time: 0,
+                            dwExtraInfo: 0,
+                        },
+                    },
+                },
+                INPUT {
+                    r#type: INPUT_KEYBOARD,
+                    Anonymous: INPUT_0 {
+                        ki: KEYBDINPUT {
+                            wVk: VIRTUAL_KEY(0x0D),
                             wScan: 0,
                             dwFlags: KEYEVENTF_KEYUP,
                             time: 0,
