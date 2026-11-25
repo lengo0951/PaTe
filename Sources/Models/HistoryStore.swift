@@ -91,9 +91,14 @@ public class HistoryStore: ObservableObject {
         thumbnailCache.countLimit = 80 // Lightweight 400px thumbnails (~25KB each)
         
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let storeDir = appSupport.appendingPathComponent("PasteFlow", isDirectory: true)
+        let legacyDir = appSupport.appendingPathComponent("PasteFlow", isDirectory: true)
+        let storeDir = appSupport.appendingPathComponent("PATE", isDirectory: true)
         if !fileManager.fileExists(atPath: storeDir.path) {
-            try? fileManager.createDirectory(at: storeDir, withIntermediateDirectories: true)
+            if fileManager.fileExists(atPath: legacyDir.path) {
+                try? fileManager.copyItem(at: legacyDir, to: storeDir)
+            } else {
+                try? fileManager.createDirectory(at: storeDir, withIntermediateDirectories: true)
+            }
         }
         self.storageDirectory = storeDir
         

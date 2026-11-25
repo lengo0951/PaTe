@@ -1,7 +1,7 @@
 import AppKit
 
 @main
-struct PasteFlowApp {
+struct PATEApp {
     @MainActor
     static func main() {
         let app = NSApplication.shared

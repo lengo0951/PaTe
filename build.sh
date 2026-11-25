@@ -4,15 +4,15 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
-echo "=== Building PasteFlow v1.2.0 (macOS Native) ==="
+echo "=== Building PATE v1.2.0 (macOS Native) ==="
 
 BUILD_DIR="$DIR/build"
-APP_NAME="PasteFlow.app"
+APP_NAME="PATE.app"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME"
 MACOS_DIR="$APP_BUNDLE/Contents/MacOS"
 RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
 
-rm -rf "$APP_BUNDLE"
+rm -rf "$APP_BUNDLE" "$BUILD_DIR/PasteFlow.app"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
 SWIFT_FILES=$(find Sources -name "*.swift" | sort)
@@ -30,7 +30,7 @@ swiftc -O \
     -framework ImageIO \
     -framework ServiceManagement \
     $SWIFT_FILES \
-    -o "$MACOS_DIR/PasteFlow"
+    -o "$MACOS_DIR/PATE"
 
 echo "Copying metadata and assets..."
 cp Info.plist "$APP_BUNDLE/Contents/Info.plist"
@@ -38,16 +38,15 @@ if [ -d "Assets" ]; then
     cp -R Assets/* "$RESOURCES_DIR/"
 fi
 
-# Strip any stray extended attributes before signing (Apple TN2206 compliant)
 xattr -cr "$APP_BUNDLE" 2>/dev/null || true
 
 SIGN_ID="${CODESIGN_IDENTITY:--}"
 echo "Signing application bundle (Identity: $SIGN_ID, strict non-deep)..."
 if [ "$SIGN_ID" != "-" ]; then
-    codesign --force --options runtime --entitlements Entitlements.plist --sign "$SIGN_ID" "$MACOS_DIR/PasteFlow"
+    codesign --force --options runtime --entitlements Entitlements.plist --sign "$SIGN_ID" "$MACOS_DIR/PATE"
     codesign --force --options runtime --entitlements Entitlements.plist --sign "$SIGN_ID" "$APP_BUNDLE"
 else
-    codesign --force --entitlements Entitlements.plist --sign - "$MACOS_DIR/PasteFlow"
+    codesign --force --entitlements Entitlements.plist --sign - "$MACOS_DIR/PATE"
     codesign --force --entitlements Entitlements.plist --sign - "$APP_BUNDLE"
 fi
 

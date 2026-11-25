@@ -21,7 +21,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         // 4. Start monitoring system clipboard
         ClipboardMonitor.shared.startMonitoring()
         
-        print("PasteFlow v1.2.0 initialized successfully.")
+        print("PATE v1.2.0 initialized successfully.")
     }
     
     private func setupMainMenu() {
@@ -31,9 +31,9 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenuItem = NSMenuItem()
         mainMenu.addItem(appMenuItem)
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About PasteFlow", action: #selector(showAbout), keyEquivalent: "")
+        appMenu.addItem(withTitle: "About PATE", action: #selector(showAbout), keyEquivalent: "")
         appMenu.addItem(NSMenuItem.separator())
-        appMenu.addItem(withTitle: "Quit PasteFlow", action: #selector(quitApp), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Quit PATE", action: #selector(quitApp), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
         
         // Edit Menu (Enables standard ⌘V, ⌘C, ⌘X, ⌘A, ⌘Z in all TextFields and SecureFields)
@@ -56,7 +56,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "paperclip", accessibilityDescription: "PasteFlow")
+            button.image = NSImage(systemSymbolName: "paperclip", accessibilityDescription: "PATE")
             button.action = #selector(statusItemClicked(_:))
             button.target = self
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -75,7 +75,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private func showContextMenu() {
         let menu = NSMenu()
         
-        menu.addItem(NSMenuItem(title: "Toggle PasteFlow (⌘⇧V)", action: #selector(togglePanel), keyEquivalent: "V"))
+        menu.addItem(NSMenuItem(title: "Toggle PATE (⌘⇧V)", action: #selector(togglePanel), keyEquivalent: "V"))
         menu.addItem(NSMenuItem(title: "Add Account / Password... (⌘N)", action: #selector(addAccount), keyEquivalent: "n"))
         menu.addItem(NSMenuItem.separator())
         
@@ -85,8 +85,8 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: "Clear History (Keep Pinned & Accounts)", action: #selector(clearHistory), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         
-        menu.addItem(NSMenuItem(title: "About PasteFlow v1.2.0 (by Quốc Ngô)", action: #selector(showAbout), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Quit PasteFlow", action: #selector(quitApp), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "About PATE v1.2.0 (by Quốc Ngô)", action: #selector(showAbout), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Quit PATE", action: #selector(quitApp), keyEquivalent: "q"))
         
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
@@ -115,7 +115,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     
     @objc private func showAbout() {
         let alert = NSAlert()
-        alert.messageText = "PasteFlow v1.2.0"
+        alert.messageText = "PATE v1.2.0"
         alert.informativeText = "Next-Gen Native Clipboard & Credential Manager\n\nDeveloped with ❤️ by Quốc Ngô (@lengo0951)\nPowered by Swift 6, AES-256-GCM Vault & QuocNgoKit ⚡\n\nUltra-low memory, instant speed, privacy-first."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")

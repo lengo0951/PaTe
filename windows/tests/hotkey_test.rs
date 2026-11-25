@@ -1,4 +1,4 @@
-use pasteflow_windows::core::hotkey::{parse_hotkey, MOD_ALT, MOD_CONTROL, MOD_NOREPEAT, MOD_SHIFT, MOD_WIN};
+use pate_windows::core::hotkey::{parse_hotkey, MOD_ALT, MOD_CONTROL, MOD_NOREPEAT, MOD_SHIFT, MOD_WIN};
 
 #[test]
 fn test_default_hotkey_parsing() {

@@ -113,19 +113,19 @@ All benchmarks were measured directly on macOS (Apple Silicon M-Series, macOS Se
 ### 🍎 macOS Option 1: Homebrew Tap (Recommended)
 ```bash
 brew tap lengo0951/tap https://github.com/lengo0951/PasteFlow
-brew install --cask pasteflow
+brew install --cask pate
 ```
 
 ### 🍎 macOS Option 2: Download Pre-built DMG
-1. Download **[PasteFlow-1.2.0.dmg](https://github.com/lengo0951/PasteFlow/releases/latest)**.
-2. Open the disk image and drag **PasteFlow.app** into your **Applications** folder.
-3. On first launch for open-source builds, Control-click **PasteFlow.app** -> **Open** (or allow in *System Settings → Privacy & Security*), and grant **Accessibility** permission for `Cmd + V` synthesis.
+1. Download **[PATE-1.2.0.dmg](https://github.com/lengo0951/PasteFlow/releases/latest)**.
+2. Open the disk image and drag **PATE.app** into your **Applications** folder.
+3. On first launch for open-source builds, Control-click **PATE.app** -> **Open** (or allow in *System Settings → Privacy & Security*), and grant **Accessibility** permission for `Cmd + V` synthesis.
 4. Press **`⌘ + ⇧ + V`** to activate!
 
 ### 🪟 Windows (10 / 11 x64)
-1. Download **[PasteFlow-v1.2.0-windows.zip](https://github.com/lengo0951/PasteFlow/releases/latest)**.
-2. Extract and run `pasteflow.exe` (single portable native executable, zero installer scripts).
-3. Right-click the PasteFlow System Tray icon to toggle **Launch at Windows Startup** or **Add Account / Password**.
+1. Download **[PATE-v1.2.0-windows.zip](https://github.com/lengo0951/PasteFlow/releases/latest)**.
+2. Extract and run `pate.exe` (single portable native executable, zero installer scripts).
+3. Right-click the PATE System Tray icon to toggle **Launch at Windows Startup** or **Add Account / Password**.
 4. Press **`Ctrl + Shift + V`** to activate!
 
 ---

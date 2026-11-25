@@ -1,4 +1,4 @@
-name: Build & Release PasteFlow (macOS + Windows MSVC)
+name: Build & Release PATE (macOS + Windows MSVC)
 
 on:
   workflow_dispatch:
@@ -23,8 +23,8 @@ jobs:
       - name: Upload macOS DMG Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pasteflow-macos-dmg
-          path: build/PasteFlow-*.dmg
+          name: pate-macos-dmg
+          path: build/PATE-*.dmg
 
   build-windows-msvc:
     name: Windows Native (Rust MSVC x86_64)
@@ -42,10 +42,10 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist_win, build | Out-Null
-          Copy-Item windows/target/x86_64-pc-windows-msvc/release/pasteflow.exe dist_win/pasteflow.exe
-          Compress-Archive -Path dist_win/* -DestinationPath build/PasteFlow-v1.2.0-windows-msvc.zip -Force
+          Copy-Item windows/target/x86_64-pc-windows-msvc/release/pate.exe dist_win/pate.exe
+          Compress-Archive -Path dist_win/* -DestinationPath build/PATE-v1.2.0-windows-msvc.zip -Force
       - name: Upload Windows MSVC Zip Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pasteflow-windows-msvc
-          path: build/PasteFlow-*-windows-msvc.zip
+          name: pate-windows-msvc
+          path: build/PATE-*-windows-msvc.zip

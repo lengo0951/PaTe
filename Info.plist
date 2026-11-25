@@ -3,19 +3,19 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>PasteFlow</string>
+    <string>PATE</string>
     <key>CFBundleIdentifier</key>
-    <string>com.coolstar.PasteFlow</string>
+    <string>com.quocngo.PATE</string>
     <key>CFBundleName</key>
-    <string>PasteFlow</string>
+    <string>PATE</string>
     <key>CFBundleDisplayName</key>
-    <string>PasteFlow</string>
+    <string>PATE</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
     <string>1.2.0</string>
     <key>CFBundleVersion</key>
-    <string>3</string>
+    <string>4</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Quốc Ngô (@lengo0951). All rights reserved.</string>
     <key>CFBundleIconFile</key>
@@ -27,6 +27,6 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSAppleEventsUsageDescription</key>
-    <string>PasteFlow simulates Cmd+V to paste selected clips into your active applications.</string>
+    <string>PATE simulates Cmd+V to paste selected clips into your active applications.</string>
 </dict>
 </plist>

@@ -5,8 +5,8 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
 VERSION="1.2.0"
-APP_NAME="PasteFlow"
-DMG_NAME="PasteFlow-${VERSION}.dmg"
+APP_NAME="PATE"
+DMG_NAME="PATE-${VERSION}.dmg"
 BUILD_DIR="$DIR/build"
 APP_BUNDLE="$BUILD_DIR/${APP_NAME}.app"
 DIST_DIR="$DIR/dist"
@@ -30,22 +30,22 @@ echo "Creating /Applications symlink..."
 ln -s /Applications "$STAGING_DIR/Applications"
 
 cat << 'EOF' > "$STAGING_DIR/README - First Launch Guide.txt"
-PasteFlow v1.2.0 for macOS (Apple Silicon)
+PATE v1.2.0 for macOS (Apple Silicon)
 Crafted by Quốc Ngô (@lengo0951)
 ============================================================
 
 INSTALLATION:
-1. Drag PasteFlow.app into the Applications folder.
+1. Drag PATE.app into the Applications folder.
 2. Recommended via Homebrew (clean open-source install):
      brew tap lengo0951/tap https://github.com/lengo0951/PasteFlow
-     brew install --cask pasteflow
+     brew install --cask pate
 
 FIRST LAUNCH (Apple Gatekeeper for Open-Source Builds):
 If downloaded directly via a web browser without Apple Notarization:
-1. Control-click (or Right-click) PasteFlow.app in /Applications and choose "Open", OR
+1. Control-click (or Right-click) PATE.app in /Applications and choose "Open", OR
 2. Open System Settings -> Privacy & Security -> scroll down and click "Open Anyway".
-3. Grant Accessibility access when prompted so PasteFlow can synthesize Cmd+V paste events.
-4. Press Cmd + Shift + V from anywhere to summon PasteFlow!
+3. Grant Accessibility access when prompted so PATE can synthesize Cmd+V paste events.
+4. Press Cmd + Shift + V from anywhere to summon PATE!
 EOF
 
 echo "Building compressed DMG with hdiutil..."
@@ -60,7 +60,6 @@ hdiutil create \
 cp "$OUTPUT_DMG" "$BUILD_DIR/${APP_NAME}.dmg"
 rm -rf "$DIST_DIR"
 
-# Optional Apple Notarization if credentials are provided in CI/environment
 if [ -n "$APPLE_ID" ] && [ -n "$APPLE_TEAM_ID" ] && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ]; then
     echo "Submitting DMG to Apple Notary Service..."
     xcrun notarytool submit "$OUTPUT_DMG" \

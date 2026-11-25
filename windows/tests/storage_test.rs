@@ -1,5 +1,5 @@
-use pasteflow_windows::core::storage::HistoryStore;
-use pasteflow_windows::core::types::ClipboardItem;
+use pate_windows::core::storage::HistoryStore;
+use pate_windows::core::types::ClipboardItem;
 
 #[test]
 fn test_blacklist_filtering() {

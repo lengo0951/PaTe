@@ -8,7 +8,7 @@ import Security
 public final class CredentialVault {
     public static let shared = CredentialVault()
     
-    private let keychainService = "com.coolstar.PasteFlow.VaultMaster"
+    private let keychainService = "com.quocngo.PATE.VaultMaster"
     private let keychainAccount = "master-key-v1"
     
     private let vaultFileURL: URL
@@ -19,9 +19,14 @@ public final class CredentialVault {
     private init() {
         let fm = FileManager.default
         let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("PasteFlow", isDirectory: true)
+        let legacyDir = appSupport.appendingPathComponent("PasteFlow", isDirectory: true)
+        let dir = appSupport.appendingPathComponent("PATE", isDirectory: true)
         if !fm.fileExists(atPath: dir.path) {
-            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            if fm.fileExists(atPath: legacyDir.path) {
+                try? fm.copyItem(at: legacyDir, to: dir)
+            } else {
+                try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            }
         }
         self.vaultFileURL = dir.appendingPathComponent("vault.enc.json")
         self.fallbackKeyURL = dir.appendingPathComponent(".vault_master.key")

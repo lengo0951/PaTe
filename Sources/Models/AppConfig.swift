@@ -151,9 +151,14 @@ public class AppConfig: ObservableObject {
     
     private var configFile: URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("PasteFlow", isDirectory: true)
+        let legacyDir = appSupport.appendingPathComponent("PasteFlow", isDirectory: true)
+        let dir = appSupport.appendingPathComponent("PATE", isDirectory: true)
         if !FileManager.default.fileExists(atPath: dir.path) {
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            if FileManager.default.fileExists(atPath: legacyDir.path) {
+                try? FileManager.default.copyItem(at: legacyDir, to: dir)
+            } else {
+                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            }
         }
         return dir.appendingPathComponent("config.json")
     }

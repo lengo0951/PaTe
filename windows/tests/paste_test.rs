@@ -1,4 +1,4 @@
-use pasteflow_windows::core::simulator::strip_rich_text;
+use pate_windows::core::simulator::strip_rich_text;
 
 #[test]
 fn test_strip_rich_text_formatting() {

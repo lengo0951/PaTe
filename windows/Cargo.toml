@@ -1,12 +1,12 @@
 [package]
-name = "pasteflow-windows"
+name = "pate-windows"
 version = "1.2.0"
 edition = "2021"
 authors = ["Quốc Ngô <@lengo0951>"]
-description = "Native Windows clipboard & credential manager built with Rust and Win32 APIs."
+description = "PATE - Native Windows clipboard & encrypted account manager built with Rust and Win32 APIs."
 
 [[bin]]
-name = "pasteflow"
+name = "pate"
 path = "src/main.rs"
 
 [dependencies]

@@ -295,7 +295,7 @@ public struct SettingsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Toggle PasteFlow Anywhere")
+                        Text("Toggle PATE Anywhere")
                             .font(.system(size: 12, weight: .bold))
                         Text("Current: \(config.toggleShortcut.displayString)")
                             .font(.system(size: 11))
@@ -464,7 +464,7 @@ public struct SettingsView: View {
                 .shadow(radius: 6)
             
             VStack(spacing: 4) {
-                Text("PasteFlow")
+                Text("PATE")
                     .font(.system(size: 20, weight: .bold))
                 Text("Version 1.2.0 • Dual-Platform macOS & Windows")
                     .font(.system(size: 11))

@@ -2,11 +2,11 @@
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0" xmlns:asmv3="urn:schemas-microsoft-com:asm.v3">
   <assemblyIdentity
     type="win32"
-    name="QuocNgo.PasteFlow.Desktop"
+    name="QuocNgo.PATE.Desktop"
     version="1.2.0.0"
     processorArchitecture="amd64"
   />
-  <description>PasteFlow Native Clipboard and Credential Manager</description>
+  <description>PATE Native Clipboard and Encrypted Account Manager</description>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges>

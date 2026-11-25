@@ -66,7 +66,7 @@ pub mod win32 {
         let subkey: Vec<u16> = "Software\\Microsoft\\Windows\\CurrentVersion\\Run\0"
             .encode_utf16()
             .collect();
-        let val_name: Vec<u16> = "PasteFlow\0".encode_utf16().collect();
+        let val_name: Vec<u16> = "PATE\0".encode_utf16().collect();
         let mut hkey = HKEY::default();
         if RegOpenKeyExW(
             HKEY_CURRENT_USER,
@@ -96,7 +96,7 @@ pub mod win32 {
         let subkey: Vec<u16> = "Software\\Microsoft\\Windows\\CurrentVersion\\Run\0"
             .encode_utf16()
             .collect();
-        let val_name: Vec<u16> = "PasteFlow\0".encode_utf16().collect();
+        let val_name: Vec<u16> = "PATE\0".encode_utf16().collect();
         let mut hkey = HKEY::default();
         if RegOpenKeyExW(
             HKEY_CURRENT_USER,
@@ -244,7 +244,7 @@ pub mod win32 {
         }
 
         let instance = GetModuleHandleW(None).unwrap_or_default();
-        let cls: Vec<u16> = "PasteFlowCredDlg\0".encode_utf16().collect();
+        let cls: Vec<u16> = "PATECredDlg\0".encode_utf16().collect();
         let title: Vec<u16> = "Save Account & Password (DPAPI Encrypted)\0".encode_utf16().collect();
 
         let dlg = CreateWindowExW(
@@ -454,12 +454,12 @@ pub mod win32 {
                     WM_RBUTTONUP => {
                         if let Ok(hmenu) = CreatePopupMenu() {
                             let startup_on = is_startup_enabled();
-                            let m_toggle: Vec<u16> = "Toggle PasteFlow (Ctrl+Shift+V)\0".encode_utf16().collect();
+                            let m_toggle: Vec<u16> = "Toggle PATE (Ctrl+Shift+V)\0".encode_utf16().collect();
                             let m_add: Vec<u16> = "Add Account / Password... (Ctrl+N)\0".encode_utf16().collect();
                             let m_startup: Vec<u16> = "Launch at Windows Startup\0".encode_utf16().collect();
                             let m_clear: Vec<u16> = "Clear History (Keep Pinned & Accounts)\0".encode_utf16().collect();
-                            let m_about: Vec<u16> = "PasteFlow v1.2.0 (by Quốc Ngô)\0".encode_utf16().collect();
-                            let m_exit: Vec<u16> = "Exit PasteFlow\0".encode_utf16().collect();
+                            let m_about: Vec<u16> = "PATE v1.2.0 (by Quốc Ngô)\0".encode_utf16().collect();
+                            let m_exit: Vec<u16> = "Exit PATE\0".encode_utf16().collect();
 
                             let _ = AppendMenuW(hmenu, MF_STRING, IDM_TOGGLE, PCWSTR(m_toggle.as_ptr()));
                             let _ = AppendMenuW(hmenu, MF_STRING, IDM_ADD_ACCOUNT, PCWSTR(m_add.as_ptr()));
@@ -907,8 +907,8 @@ pub mod win32 {
     pub fn run_app() -> windows::core::Result<()> {
         unsafe {
             let instance = GetModuleHandleW(None)?;
-            let class_name: Vec<u16> = "PasteFlowHUDClass\0".encode_utf16().collect();
-            let dlg_class_name: Vec<u16> = "PasteFlowCredDlg\0".encode_utf16().collect();
+            let class_name: Vec<u16> = "PATEHUDClass\0".encode_utf16().collect();
+            let dlg_class_name: Vec<u16> = "PATECredDlg\0".encode_utf16().collect();
 
             let wc = WNDCLASSW {
                 style: CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS,
@@ -948,7 +948,7 @@ pub mod win32 {
             let hwnd = CreateWindowExW(
                 WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
                 PCWSTR(class_name.as_ptr()),
-                PCWSTR("PasteFlow\0".encode_utf16().collect::<Vec<u16>>().as_ptr()),
+                PCWSTR("PATE\0".encode_utf16().collect::<Vec<u16>>().as_ptr()),
                 WS_POPUP,
                 x,
                 y,
@@ -999,7 +999,7 @@ pub mod win32 {
             nid.uCallbackMessage = WM_TRAYICON;
             nid.hIcon = hicon;
 
-            let tip = "PasteFlow v1.2.0 - Clipboard & Account Vault\0"
+            let tip = "PATE v1.2.0 - Clipboard & Account Vault\0"
                 .encode_utf16()
                 .collect::<Vec<u16>>();
             for (i, &c) in tip.iter().enumerate().take(nid.szTip.len() - 1) {
@@ -1008,7 +1008,16 @@ pub mod win32 {
             let _ = Shell_NotifyIconW(NIM_ADD, &nid);
 
             let app_data = std::env::var("APPDATA").unwrap_or_else(|_| ".".to_string());
-            let storage_path = std::path::PathBuf::from(app_data).join("PasteFlow");
+            let storage_path = std::path::PathBuf::from(&app_data).join("PATE");
+            let legacy_path = std::path::PathBuf::from(&app_data).join("PasteFlow");
+            if !storage_path.exists() && legacy_path.exists() {
+                let _ = std::fs::create_dir_all(&storage_path);
+                if let Ok(entries) = std::fs::read_dir(&legacy_path) {
+                    for entry in entries.flatten() {
+                        let _ = std::fs::copy(entry.path(), storage_path.join(entry.file_name()));
+                    }
+                }
+            }
             let store = HistoryStore::new(storage_path);
 
             let hotkey_str = store.config.hotkey.clone();
