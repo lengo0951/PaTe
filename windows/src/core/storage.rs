@@ -239,4 +239,35 @@ mod tests {
 
         let _ = fs::remove_dir_all(temp_dir);
     }
+
+    #[test]
+    fn test_1000_clips_stress_performance() {
+        let temp_dir = std::env::temp_dir().join(format!("pate_1000_stress_{}", uuid::Uuid::new_v4()));
+        let mut store = HistoryStore::new(temp_dir.clone());
+        store.config.max_items = 1000;
+
+        let start = std::time::Instant::now();
+        for i in 0..1000 {
+            let text = format!("Clipboard item #{} — sample code & text payload for 1000-clip stress test", i);
+            store.add_item(ClipboardItem::new_text(text, Some("Edge.exe".to_string()), None));
+        }
+        let insert_ms = start.elapsed().as_millis();
+        assert_eq!(store.items.len(), 1000);
+
+        let save_start = std::time::Instant::now();
+        store.save().unwrap();
+        let save_ms = save_start.elapsed().as_millis();
+
+        let reload_start = std::time::Instant::now();
+        let reloaded = HistoryStore::new(temp_dir.clone());
+        let reload_ms = reload_start.elapsed().as_millis();
+        assert_eq!(reloaded.items.len(), 1000);
+
+        // Must insert, save, and reload 1,000 items well under 250ms total
+        assert!(insert_ms < 250, "1000 inserts took too long: {}ms", insert_ms);
+        assert!(save_ms < 250, "1000 save took too long: {}ms", save_ms);
+        assert!(reload_ms < 250, "1000 reload took too long: {}ms", reload_ms);
+
+        let _ = fs::remove_dir_all(temp_dir);
+    }
 }

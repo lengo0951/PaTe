@@ -69,7 +69,7 @@ public class HistoryStore: ObservableObject {
         }
     }
     
-    public var maxHistoryCount: Int = 500
+    public var maxHistoryCount: Int = 1000
     
     private let fileManager = FileManager.default
     private let imageCache = NSCache<NSString, NSImage>()
@@ -87,8 +87,11 @@ public class HistoryStore: ObservableObject {
     private var checksumMap: [String: String] = [:] // checksum -> item.id
     
     public init() {
-        imageCache.countLimit = 20
-        thumbnailCache.countLimit = 80 // Lightweight 400px thumbnails (~25KB each)
+        // Strict memory bounds: never let decoded NSImages exceed 12 MB combined
+        imageCache.countLimit = 4
+        imageCache.totalCostLimit = 8 * 1024 * 1024
+        thumbnailCache.countLimit = 24
+        thumbnailCache.totalCostLimit = 4 * 1024 * 1024
         
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let legacyDir = appSupport.appendingPathComponent("PasteFlow", isDirectory: true)
@@ -380,6 +383,11 @@ public class HistoryStore: ObservableObject {
         return (fileName, generatedThumb)
     }
     
+    public func purgeMemoryCaches() {
+        imageCache.removeAllObjects()
+        thumbnailCache.removeAllObjects()
+    }
+    
     public func loadThumbnail(for item: ClipboardItem) -> NSImage? {
         if let thumbName = item.thumbnailFileName {
             let key = thumbName as NSString
@@ -388,12 +396,39 @@ public class HistoryStore: ObservableObject {
             }
             let thumbURL = imagesDirectory.appendingPathComponent(thumbName)
             if let img = NSImage(contentsOf: thumbURL) {
-                thumbnailCache.setObject(img, forKey: key)
+                let cost = Int(img.size.width * img.size.height * 4)
+                thumbnailCache.setObject(img, forKey: key, cost: max(cost, 16_384))
                 return img
             }
         }
+        // Lazy-generate 300px thumbnail for legacy images so we NEVER decode a 4K PNG into card RAM!
         if let full = item.imageFileName {
-            return loadImage(fileName: full)
+            let fullURL = imagesDirectory.appendingPathComponent(full)
+            let derivedThumbName = full.replacingOccurrences(of: ".png", with: "") + "_thumb.jpg"
+            let derivedKey = derivedThumbName as NSString
+            if let cached = thumbnailCache.object(forKey: derivedKey) {
+                return cached
+            }
+            let thumbURL = imagesDirectory.appendingPathComponent(derivedThumbName)
+            if !fileManager.fileExists(atPath: thumbURL.path),
+               let source = CGImageSourceCreateWithURL(fullURL as CFURL, nil) {
+                let options: [CFString: Any] = [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceCreateThumbnailWithTransform: true,
+                    kCGImageSourceThumbnailMaxPixelSize: 300
+                ]
+                if let cgThumb = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) {
+                    let rep = NSBitmapImageRep(cgImage: cgThumb)
+                    if let jpgData = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.72]) {
+                        try? jpgData.write(to: thumbURL)
+                    }
+                }
+            }
+            if let img = NSImage(contentsOf: thumbURL) {
+                let cost = Int(img.size.width * img.size.height * 4)
+                thumbnailCache.setObject(img, forKey: derivedKey, cost: max(cost, 16_384))
+                return img
+            }
         }
         return nil
     }
@@ -405,7 +440,8 @@ public class HistoryStore: ObservableObject {
         }
         let fileURL = imagesDirectory.appendingPathComponent(fileName)
         if let image = NSImage(contentsOf: fileURL) {
-            imageCache.setObject(image, forKey: key)
+            let cost = Int(image.size.width * image.size.height * 4)
+            imageCache.setObject(image, forKey: key, cost: max(cost, 65_536))
             return image
         }
         return nil
@@ -450,11 +486,18 @@ public class HistoryStore: ObservableObject {
         if fileManager.fileExists(atPath: historyFile.path),
            let data = try? Data(contentsOf: historyFile),
            var saved = try? decoder.decode([ClipboardItem].self, from: data) {
+            var didTrimBloat = false
             for i in saved.indices {
-                saved[i].appIconData = nil
+                if saved[i].appIconData != nil { saved[i].appIconData = nil; didTrimBloat = true }
+                // Strip unused HTML bloat and oversized RTF (> 8 KB) to keep 1,000+ clips ultra-lightweight!
+                if saved[i].htmlData != nil { saved[i].htmlData = nil; didTrimBloat = true }
+                if let rtf = saved[i].rtfData, rtf.count > 8192 { saved[i].rtfData = nil; didTrimBloat = true }
             }
             self.items = saved
             rebuildChecksumMap()
+            if didTrimBloat {
+                saveData()
+            }
         }
         
         if fileManager.fileExists(atPath: pinboardsFile.path),

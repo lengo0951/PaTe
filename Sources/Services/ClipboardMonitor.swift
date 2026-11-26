@@ -141,10 +141,10 @@ public class ClipboardMonitor: NSObject {
             return
         }
         
-        // 5. Check for Plain Text & Rich Text
+        // 5. Check for Plain Text & Rich Text (skip unused HTML & oversized RTF > 8 KB to prevent RAM bloat)
         if let string = pasteboard.string(forType: .string), !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let rtfData = pasteboard.data(forType: .rtf)
-            let htmlData = pasteboard.string(forType: .html)
+            let rawRtf = pasteboard.data(forType: .rtf)
+            let rtfData = (rawRtf != nil && rawRtf!.count <= 8192) ? rawRtf : nil
             
             let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
             let detectedType = classifyTextContent(string)
@@ -155,7 +155,7 @@ public class ClipboardMonitor: NSObject {
                 contentType: detectedType,
                 textValue: storedText,
                 rtfData: rtfData,
-                htmlData: htmlData,
+                htmlData: nil,
                 appBundleID: appBundleID,
                 appName: appName,
                 checksum: checksum

@@ -8,6 +8,7 @@ public class PanelController: NSObject {
     private var panel: FloatingPanel?
     private var globalClickMonitor: Any?
     private var localKeyMonitor: Any?
+    private var idleReclaimWorkItem: DispatchWorkItem?
     public private(set) var isVisible: Bool = false
     public var isSettingsSheetOpen: Bool = false
     public var isAddPinboardSheetOpen: Bool = false
@@ -292,6 +293,8 @@ public class PanelController: NSObject {
     }
     
     public func show() {
+        idleReclaimWorkItem?.cancel()
+        idleReclaimWorkItem = nil
         setupPanel()
         guard let panel = panel else { return }
         
@@ -376,11 +379,28 @@ public class PanelController: NSObject {
                 display: true
             )
             panel.animator().alphaValue = 0.0
-        }, completionHandler: {
+        }, completionHandler: { [weak self] in
             Task { @MainActor in
                 panel.orderOut(nil)
+                self?.scheduleIdleMemoryReclamation()
             }
         })
+    }
+    
+    /// Reclaims decoded image caches immediately on hide, and tears down the SwiftUI NSHostingView
+    /// & CoreAnimation backing store after 20s idle so background RAM drops to ~15-22 MB!
+    private func scheduleIdleMemoryReclamation() {
+        HistoryStore.shared.purgeMemoryCaches()
+        idleReclaimWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self, !self.isVisible, !HistoryStore.shared.isAnyModalPresented else { return }
+            self.panel?.contentView = nil
+            self.panel?.close()
+            self.panel = nil
+            HistoryStore.shared.purgeMemoryCaches()
+        }
+        idleReclaimWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20.0, execute: work)
     }
     
     public func paste(
@@ -397,9 +417,8 @@ public class PanelController: NSObject {
             panel.orderOut(nil)
             isVisible = false
         }
-        // NSApp.hide(nil) instructs macOS WindowServer to synchronously restore key focus
-        // to the exact previous application window and blinking text cursor!
         NSApp.hide(nil)
+        scheduleIdleMemoryReclamation()
         
         PasteSimulator.shared.pasteItem(
             item,

@@ -260,7 +260,7 @@ impl Default for AppConfig {
     fn default() -> Self {
         Self {
             hotkey: "Ctrl+Shift+V".to_string(),
-            max_items: 500,
+            max_items: 1000,
             launch_at_startup: false,
             blacklist: vec![
                 "1Password.exe".to_string(),

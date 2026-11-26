@@ -4,6 +4,10 @@ public struct CardCollectionView: View {
     @ObservedObject var store: HistoryStore
     let onPaste: (ClipboardItem, Bool, CredentialPasteMode) -> Void
     
+    // Windowed rendering: even with 1,000+ clipboard items, SwiftUI AttributeGraph only tracks
+    // the visible page (60 cards initially) and lazily expands as the user scrolls right!
+    @State private var renderLimit: Int = 60
+    
     public var body: some View {
         let items = store.filteredItems
         
@@ -41,10 +45,14 @@ public struct CardCollectionView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
+            let visibleCount = min(items.count, renderLimit)
+            let visibleSlice = items.prefix(visibleCount)
+            
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 14) {
-                        ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        ForEach(visibleSlice.indices, id: \.self) { index in
+                            let item = visibleSlice[index]
                             ItemCardView(
                                 item: item,
                                 index: index,
@@ -56,15 +64,28 @@ public struct CardCollectionView: View {
                                 }
                             )
                             .id(item.id)
+                            .onAppear {
+                                // Auto-load next 60 cards smoothly when user scrolls near the tail
+                                if index >= visibleCount - 8 && visibleCount < items.count {
+                                    renderLimit = min(items.count, renderLimit + 60)
+                                }
+                            }
                         }
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                 }
+                .onChange(of: store.selectedPinboardID) { _ in
+                    renderLimit = 60
+                }
+                .onChange(of: store.searchQuery) { _ in
+                    renderLimit = 60
+                }
                 .onChange(of: store.selectedItemID) { newID in
-                    // Only scroll automatically during keyboard arrow navigation!
-                    // Never shift cards under the mouse cursor during clicks/double-clicks!
                     guard store.lastSelectionWasKeyboard, let id = newID else { return }
+                    if let idx = items.firstIndex(where: { $0.id == id }), idx >= renderLimit {
+                        renderLimit = min(items.count, idx + 30)
+                    }
                     withAnimation(.easeOut(duration: 0.08)) {
                         proxy.scrollTo(id, anchor: .center)
                     }
