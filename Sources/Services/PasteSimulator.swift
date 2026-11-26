@@ -128,74 +128,81 @@ public class PasteSimulator {
                 }
                 
             case .usernameOnlyAndPreloadSecret:
-                // 2-Step Login Magic: Pre-load Password onto Clipboard right now so on Page 2 user just hits Cmd+V!
-                if !secret.isEmpty {
-                    let expectedCount = writeStringToPasteboard(secret)
-                    scheduleClipboardAutoClear(expectedChangeCount: expectedCount, delay: 60.0)
-                } else if !username.isEmpty {
-                    writeStringToPasteboard(username)
-                }
+                // 100% IME-Proof (immune to Vietnamese Telex / OpenKey / EVKey):
+                // Paste Username via Cmd+V first, wait 220ms for browser IPC, then pre-load Password onto Clipboard for Page 2!
+                let toPaste = username.isEmpty ? secret : username
+                writeStringToPasteboard(toPaste)
                 
                 deliverFocusToTargetApp { [weak self] _ in
                     guard let self = self else { return }
-                    if !username.isEmpty {
-                        if !secret.isEmpty {
-                            // Type username directly via Unicode HID so Clipboard stays pre-loaded with Password!
-                            self.typeUnicodeString(username)
-                        } else {
-                            self.simulateCmdV()
+                    self.simulateCmdV()
+                    
+                    if !username.isEmpty && !secret.isEmpty {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.220) { [weak self] in
+                            guard let self = self else { return }
+                            let expectedCount = self.writeStringToPasteboard(secret)
+                            self.scheduleClipboardAutoClear(expectedChangeCount: expectedCount, delay: 60.0)
                         }
                     }
                 }
                 
             case .smartAutoFill, .smartAutoFillAndSubmit:
                 let shouldSubmit = (credentialMode == .smartAutoFillAndSubmit)
-                // Always pre-load Password onto Clipboard upfront (ZERO clipboard swap race during auto-fill!)
-                let clipboardValue = secret.isEmpty ? username : secret
-                let expectedCount = writeStringToPasteboard(clipboardValue)
-                scheduleClipboardAutoClear(expectedChangeCount: expectedCount, delay: 60.0)
                 
                 deliverFocusToTargetApp { [weak self] targetPID in
                     guard let self = self else { return }
                     
-                    // If account has no username, or user's cursor is ALREADY inside a Password input box:
+                    // Detect if user's cursor is ALREADY inside a Password input box (AXSecureTextField)
                     let alreadyInPasswordField = (targetPID != nil) && self.isTargetFocusedFieldSecurePassword(pid: targetPID!)
                     if username.isEmpty || alreadyInPasswordField {
-                        self.simulateCmdV()
-                        if shouldSubmit {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.050) { [weak self] in
-                                self?.simulateKey(keyCode: 0x24, flags: []) // kVK_Return
-                            }
-                        }
-                        return
-                    }
-                    
-                    // Full 1-Shot Hybrid Auto-Fill:
-                    // Step 1: Type Username directly via Unicode HID stream (does not touch Clipboard!)
-                    self.typeUnicodeString(username)
-                    
-                    guard !secret.isEmpty else {
-                        if shouldSubmit {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.045) { [weak self] in
-                                self?.simulateKey(keyCode: 0x24, flags: [])
-                            }
-                        }
-                        return
-                    }
-                    
-                    // Step 2: After DOM input settles (40ms), press Tab (with cleared modifier flags) to focus Password field
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.040) { [weak self] in
-                        guard let self = self else { return }
-                        self.simulateKey(keyCode: 0x30, flags: []) // kVK_Tab
-                        
-                        // Step 3: After focus lands in Password field (45ms), paste pre-loaded Password via Cmd+V!
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.045) { [weak self] in
+                        let toPaste = secret.isEmpty ? username : secret
+                        let expectedCount = self.writeStringToPasteboard(toPaste)
+                        self.scheduleClipboardAutoClear(expectedChangeCount: expectedCount, delay: 60.0)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.015) { [weak self] in
                             guard let self = self else { return }
                             self.simulateCmdV()
-                            
                             if shouldSubmit {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.050) { [weak self] in
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.060) { [weak self] in
                                     self?.simulateKey(keyCode: 0x24, flags: []) // kVK_Return
+                                }
+                            }
+                        }
+                        return
+                    }
+                    
+                    // Full 1-Shot IME-Proof Clipboard Auto-Fill (Zero Telex / OpenKey / EVKey corruption!):
+                    // Step 1: Write Username to Pasteboard & paste via Cmd+V
+                    self.writeStringToPasteboard(username)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.015) { [weak self] in
+                        guard let self = self else { return }
+                        self.simulateCmdV()
+                        
+                        guard !secret.isEmpty else {
+                            if shouldSubmit {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.060) { [weak self] in
+                                    self?.simulateKey(keyCode: 0x24, flags: [])
+                                }
+                            }
+                            return
+                        }
+                        
+                        // Step 2: Wait 180ms so multi-process browsers (Edge/Chrome/Safari) finish reading Username from Clipboard
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.180) { [weak self] in
+                            guard let self = self else { return }
+                            self.simulateKey(keyCode: 0x30, flags: []) // kVK_Tab
+                            
+                            // Step 3: Load Password onto Pasteboard and paste via Cmd+V after focus settles in Password field (60ms)
+                            let expectedCount = self.writeStringToPasteboard(secret)
+                            self.scheduleClipboardAutoClear(expectedChangeCount: expectedCount, delay: 60.0)
+                            
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.060) { [weak self] in
+                                guard let self = self else { return }
+                                self.simulateCmdV()
+                                
+                                if shouldSubmit {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.060) { [weak self] in
+                                        self?.simulateKey(keyCode: 0x24, flags: []) // kVK_Return
+                                    }
                                 }
                             }
                         }

@@ -166,42 +166,60 @@ pub mod win32 {
             let user = item.credential_username.clone().unwrap_or_default();
             let secret = vault_secret.unwrap_or_default();
 
-            // Always pre-load Password onto Clipboard upfront so there is ZERO clipboard swap race!
-            let clipboard_val = if !secret.is_empty() { &secret } else { &user };
-            if !clipboard_val.is_empty() {
-                set_clipboard_text_with_tag(hwnd, clipboard_val, true);
-                let _ = SetTimer(hwnd, IDT_CLEAR_SECRET, 60_000, None);
-            }
-
             restore_focus(target);
 
             match mode {
                 WinCredPasteMode::PasswordOnly => {
-                    send_ctrl_v();
+                    let val = if !secret.is_empty() { &secret } else { &user };
+                    if !val.is_empty() {
+                        set_clipboard_text_with_tag(hwnd, val, true);
+                        let _ = SetTimer(hwnd, IDT_CLEAR_SECRET, 60_000, None);
+                        std::thread::sleep(std::time::Duration::from_millis(15));
+                        send_ctrl_v();
+                    }
                 }
                 WinCredPasteMode::UsernameAndPreloadPass => {
-                    // Type Username directly via Unicode HID stream while Password stays ready on Clipboard for Page 2!
-                    if !user.is_empty() {
-                        send_unicode_text(&user);
-                    } else {
+                    // 100% IME-Proof (immune to Vietnamese UniKey / EVKey Telex):
+                    // Paste Username via Ctrl+V, wait 220ms for browser IPC, then pre-load Password for Page 2!
+                    let val = if !user.is_empty() { &user } else { &secret };
+                    if !val.is_empty() {
+                        set_clipboard_text_with_tag(hwnd, val, false);
+                        std::thread::sleep(std::time::Duration::from_millis(15));
                         send_ctrl_v();
+                        if !user.is_empty() && !secret.is_empty() {
+                            std::thread::sleep(std::time::Duration::from_millis(220));
+                            set_clipboard_text_with_tag(hwnd, &secret, true);
+                            let _ = SetTimer(hwnd, IDT_CLEAR_SECRET, 60_000, None);
+                        }
                     }
                 }
                 WinCredPasteMode::SmartAutoFill | WinCredPasteMode::SmartAutoFillAndSubmit => {
                     if !user.is_empty() && !secret.is_empty() {
-                        send_unicode_text(&user);
-                        std::thread::sleep(std::time::Duration::from_millis(35));
+                        // Step 1: Paste Username via Ctrl+V (100% IME-proof!)
+                        set_clipboard_text_with_tag(hwnd, &user, false);
+                        std::thread::sleep(std::time::Duration::from_millis(15));
+                        send_ctrl_v();
+                        // Step 2: Wait 180ms for browser to complete paste, then Tab to Password field
+                        std::thread::sleep(std::time::Duration::from_millis(180));
                         send_tab_key();
-                        std::thread::sleep(std::time::Duration::from_millis(45));
+                        // Step 3: Load Password and paste via Ctrl+V
+                        set_clipboard_text_with_tag(hwnd, &secret, true);
+                        let _ = SetTimer(hwnd, IDT_CLEAR_SECRET, 60_000, None);
+                        std::thread::sleep(std::time::Duration::from_millis(60));
                         send_ctrl_v();
                     } else if !user.is_empty() {
-                        send_unicode_text(&user);
-                    } else {
+                        set_clipboard_text_with_tag(hwnd, &user, false);
+                        std::thread::sleep(std::time::Duration::from_millis(15));
+                        send_ctrl_v();
+                    } else if !secret.is_empty() {
+                        set_clipboard_text_with_tag(hwnd, &secret, true);
+                        let _ = SetTimer(hwnd, IDT_CLEAR_SECRET, 60_000, None);
+                        std::thread::sleep(std::time::Duration::from_millis(15));
                         send_ctrl_v();
                     }
 
                     if mode == WinCredPasteMode::SmartAutoFillAndSubmit {
-                        std::thread::sleep(std::time::Duration::from_millis(45));
+                        std::thread::sleep(std::time::Duration::from_millis(60));
                         send_return_key();
                     }
                 }
